@@ -1,0 +1,335 @@
+"use client"
+
+import { useState } from "react"
+import { apiGet, apiPost, apiPatch, apiDelete } from "../../../lib/webapp/client"
+import type { Offer, RequestItem } from "../../../lib/webapp/types"
+import { useMe } from "../../../lib/webapp/use-me"
+
+export default function MarketPage() {
+  const { me, refresh } = useMe()
+  const [offers, setOffers] = useState<Offer[]>([])
+  const [offersPage, setOffersPage] = useState(1)
+  const [offersTotal, setOffersTotal] = useState(0)
+  const [offerFilters, setOfferFilters] = useState({
+    type: "",
+    status: "ACTIVE",
+    crypto: "",
+    network: "",
+    currency: "",
+    minRate: "",
+    maxRate: "",
+  })
+  const [offerForm, setOfferForm] = useState({
+    type: "SELL",
+    crypto: "USDT",
+    network: "TRC20",
+    amount: "100",
+    currency: "RUB",
+    rate: "95",
+  })
+  const [editOfferId, setEditOfferId] = useState<string | null>(null)
+  const [editOfferForm, setEditOfferForm] = useState({
+    rate: "",
+    minAmount: "",
+    maxAmount: "",
+    paymentInfo: "",
+  })
+  const [offerRequests, setOfferRequests] = useState<RequestItem[]>([])
+  const [activeOfferId, setActiveOfferId] = useState<string | null>(null)
+
+  const loadOffers = async (pageOverride?: number) => {
+    const targetPage = pageOverride ?? offersPage
+    const params = new URLSearchParams()
+    Object.entries(offerFilters).forEach(([key, value]) => {
+      if (value) params.set(key, value)
+    })
+    params.set("page", String(targetPage))
+    params.set("pageSize", "20")
+
+    const data = await apiGet<{ offers: Offer[]; total: number }>(`/api/offers?${params.toString()}`)
+    if (data?.offers) {
+      setOffers(data.offers)
+      setOffersTotal(data.total || 0)
+    }
+  }
+
+  const createOffer = async () => {
+    const data = await apiPost<{ offer?: Offer }>("/api/offers", {
+      ...offerForm,
+      amount: Number(offerForm.amount),
+      rate: Number(offerForm.rate),
+    })
+    if (data?.offer) {
+      await loadOffers()
+    }
+  }
+
+  const startEditOffer = (offer: Offer) => {
+    setEditOfferId(offer.id)
+    setEditOfferForm({
+      rate: String(offer.rate ?? ""),
+      minAmount: offer.minAmount !== null && offer.minAmount !== undefined ? String(offer.minAmount) : "",
+      maxAmount: offer.maxAmount !== null && offer.maxAmount !== undefined ? String(offer.maxAmount) : "",
+      paymentInfo: offer.paymentInfo || "",
+    })
+  }
+
+  const saveOffer = async (offerId: string) => {
+    const data = await apiPatch<{ offer?: Offer }>(`/api/offers/${offerId}`, {
+      rate: editOfferForm.rate ? Number(editOfferForm.rate) : undefined,
+      minAmount: editOfferForm.minAmount ? Number(editOfferForm.minAmount) : undefined,
+      maxAmount: editOfferForm.maxAmount ? Number(editOfferForm.maxAmount) : undefined,
+      paymentInfo: editOfferForm.paymentInfo || undefined,
+    })
+    if (data?.offer) {
+      setEditOfferId(null)
+      await loadOffers()
+    }
+  }
+
+  const closeOffer = async (offerId: string) => {
+    const data = await apiDelete<{ offer?: Offer }>(`/api/offers/${offerId}`)
+    if (data?.offer) {
+      await loadOffers()
+    }
+  }
+
+  const loadOfferRequests = async (offerId: string) => {
+    setActiveOfferId(offerId)
+    const data = await apiGet<{ requests: RequestItem[] }>(`/api/requests?offerId=${offerId}`)
+    if (data?.requests) setOfferRequests(data.requests)
+  }
+
+  const updateRequestStatus = async (id: string, action: "accept" | "reject" | "complete") => {
+    const data = await apiPost<{ request?: RequestItem }>(`/api/requests/${id}/${action}`)
+    if (data?.request && activeOfferId) {
+      await loadOfferRequests(activeOfferId)
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+        <h2 className="text-lg font-semibold">Сессия</h2>
+        <p className="mt-2 text-xs text-white/60">
+          {me?.user ? `Пользователь: ${me.user.username || me.user.telegramId}` : "Сессия не найдена"}
+        </p>
+        <button
+          type="button"
+          onClick={() => refresh()}
+          className="mt-3 inline-flex items-center rounded-lg bg-white/10 px-3 py-2 text-xs"
+        >
+          Обновить
+        </button>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+          <h2 className="text-lg font-semibold">Фильтры</h2>
+          <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+            {Object.entries(offerFilters).map(([key, value]) => (
+              <input
+                key={key}
+                className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+                value={value}
+                onChange={(e) => setOfferFilters({ ...offerFilters, [key]: e.target.value })}
+                placeholder={key}
+              />
+            ))}
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => loadOffers()}
+              className="inline-flex items-center rounded-lg bg-white/10 px-3 py-2 text-xs"
+            >
+              Обновить список
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const nextPage = Math.max(1, offersPage - 1)
+                setOffersPage(nextPage)
+                loadOffers(nextPage)
+              }}
+              className="inline-flex items-center rounded-lg bg-white/10 px-3 py-2 text-xs"
+            >
+              Назад
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const nextPage = offersPage + 1
+                setOffersPage(nextPage)
+                loadOffers(nextPage)
+              }}
+              className="inline-flex items-center rounded-lg bg-white/10 px-3 py-2 text-xs"
+            >
+              Вперед
+            </button>
+            <span className="text-xs text-white/50">
+              Страница {offersPage} • Всего: {offersTotal}
+            </span>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+          <h2 className="text-lg font-semibold">Создать оффер</h2>
+          <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+            {Object.entries(offerForm).map(([key, value]) => (
+              <input
+                key={key}
+                className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+                value={value}
+                onChange={(e) => setOfferForm({ ...offerForm, [key]: e.target.value })}
+                placeholder={key}
+              />
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={createOffer}
+            className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium"
+          >
+            Создать оффер
+          </button>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+        <h2 className="text-lg font-semibold">Офферы</h2>
+        <ul className="mt-4 space-y-3 text-sm">
+          {offers.map((offer) => (
+            <li key={offer.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-xs text-white/50">{offer.id}</div>
+                  <div className="font-semibold">
+                    {offer.type} {offer.amount} {offer.crypto} @ {offer.rate} {offer.currency}
+                  </div>
+                  <div className="text-xs text-white/50">
+                    {offer.network} • Статус: {offer.status || "ACTIVE"} • Осталось: {offer.remaining} • Заявок:{" "}
+                    {offer._count?.requests || 0}
+                  </div>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <button
+                    type="button"
+                    onClick={() => loadOfferRequests(offer.id)}
+                    className="rounded-lg bg-white/10 px-3 py-1 text-xs"
+                  >
+                    Заявки
+                  </button>
+                  {offer.userId === me?.user?.id && (
+                    <button
+                      type="button"
+                      onClick={() => closeOffer(offer.id)}
+                      className="rounded-lg bg-red-500/80 px-3 py-1 text-xs"
+                    >
+                      Закрыть
+                    </button>
+                  )}
+                </div>
+              </div>
+              {offer.userId === me?.user?.id && editOfferId !== offer.id && (
+                <button
+                  type="button"
+                  onClick={() => startEditOffer(offer)}
+                  className="mt-3 rounded-lg bg-white/10 px-3 py-1 text-xs"
+                >
+                  Редактировать
+                </button>
+              )}
+              {offer.userId === me?.user?.id && editOfferId === offer.id && (
+                <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                  <input
+                    className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+                    value={editOfferForm.rate}
+                    onChange={(e) => setEditOfferForm({ ...editOfferForm, rate: e.target.value })}
+                    placeholder="Rate"
+                  />
+                  <input
+                    className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+                    value={editOfferForm.minAmount}
+                    onChange={(e) => setEditOfferForm({ ...editOfferForm, minAmount: e.target.value })}
+                    placeholder="Min"
+                  />
+                  <input
+                    className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+                    value={editOfferForm.maxAmount}
+                    onChange={(e) => setEditOfferForm({ ...editOfferForm, maxAmount: e.target.value })}
+                    placeholder="Max"
+                  />
+                  <input
+                    className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+                    value={editOfferForm.paymentInfo}
+                    onChange={(e) => setEditOfferForm({ ...editOfferForm, paymentInfo: e.target.value })}
+                    placeholder="Payment info"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => saveOffer(offer.id)}
+                    className="col-span-2 rounded-lg bg-blue-600 px-3 py-2 text-xs"
+                  >
+                    Сохранить
+                  </button>
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {activeOfferId && (
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+          <h3 className="text-md font-semibold">Заявки по офферу</h3>
+          <div className="text-xs text-white/50">{activeOfferId}</div>
+          <ul className="mt-3 space-y-2 text-sm">
+            {offerRequests.map((request) => {
+              const isOwner = request.offer.userId === me?.user?.id
+              const isRequester = request.userId === me?.user?.id
+              return (
+                <li key={request.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
+                  <div className="text-xs text-white/50">{request.id}</div>
+                  <div className="text-sm font-semibold">
+                    {request.amount} {request.offer.crypto} @ {request.offer.rate} {request.offer.currency}
+                  </div>
+                  <div className="text-xs text-white/50">{request.status}</div>
+                  <div className="mt-2 flex gap-2">
+                    {isOwner && request.status === "PENDING" && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => updateRequestStatus(request.id, "accept")}
+                          className="rounded-lg bg-green-600 px-3 py-1 text-xs"
+                        >
+                          Принять
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => updateRequestStatus(request.id, "reject")}
+                          className="rounded-lg bg-red-600 px-3 py-1 text-xs"
+                        >
+                          Отклонить
+                        </button>
+                      </>
+                    )}
+                    {(isOwner || isRequester) && request.status === "ACCEPTED" && (
+                      <button
+                        type="button"
+                        onClick={() => updateRequestStatus(request.id, "complete")}
+                        className="rounded-lg bg-blue-600 px-3 py-1 text-xs"
+                      >
+                        Завершить
+                      </button>
+                    )}
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      )}
+    </div>
+  )
+}
