@@ -52,8 +52,20 @@ export async function GET(req: Request) {
   })
 
   const total = await prisma.offer.count({ where })
+  const totalAll = await prisma.offer.count()
+  const rawCount = await prisma.$queryRawUnsafe<Array<{count: bigint}>>(
+    `SELECT count(*) as count FROM "Offer"`
+  ).catch((e: Error) => [{ count: BigInt(0), error: e.message }])
 
-  return NextResponse.json({ ok: true, offers, page, pageSize, total })
+  return NextResponse.json({
+    ok: true, offers, page, pageSize, total,
+    _debug: {
+      where: JSON.stringify(where),
+      totalAll,
+      rawSqlCount: String(rawCount?.[0]?.count),
+      rawResult: rawCount,
+    },
+  })
 }
 
 export async function POST(req: Request) {
@@ -99,5 +111,20 @@ export async function POST(req: Request) {
     },
   })
 
-  return NextResponse.json({ ok: true, offer })
+  // Debug: verify the offer was actually saved
+  const totalAfter = await prisma.offer.count()
+  const rawCount = await prisma.$queryRawUnsafe<Array<{count: bigint}>>(
+    `SELECT count(*) as count FROM "Offer"`
+  ).catch((e: Error) => [{ count: BigInt(0), error: e.message }])
+
+  return NextResponse.json({
+    ok: true,
+    offer,
+    _debug: {
+      prismaCount: totalAfter,
+      rawSqlCount: String(rawCount?.[0]?.count),
+      rawResult: rawCount,
+      createdId: offer.id,
+    },
+  })
 }

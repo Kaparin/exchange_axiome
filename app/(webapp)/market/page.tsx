@@ -69,17 +69,12 @@ export default function MarketPage() {
     setError("")
     const url = `/api/offers?${params.toString()}`
     try {
-      // Основной запрос с фильтрами
-      const data = await apiGet<{ offers: Offer[]; total: number }>(url)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data = await apiGet<any>(url)
       setOffers(data.offers || [])
       setOffersTotal(data.total || 0)
-      // Дебаг — запрос БЕЗ фильтра status чтобы понять есть ли офферы вообще
-      const allData = await apiGet<{ offers: Offer[]; total: number }>("/api/offers?page=1&pageSize=5")
-      const mineData = await apiGet<{ offers: Offer[]; total: number }>("/api/offers?mine=1&page=1&pageSize=5")
-      const sample = allData.offers?.[0]
       setDebugInfo(
-        `filtered=${data.offers?.length}(total=${data.total}) | no_filter=${allData.offers?.length}(total=${allData.total}) | mine=${mineData.offers?.length}(total=${mineData.total})` +
-        (sample ? ` | sample: status="${sample.status}" type="${sample.type}" id=${sample.id.slice(0,8)}` : " | no sample")
+        `offers=${data.offers?.length} total=${data.total} | API _debug: ${JSON.stringify(data._debug)}`
       )
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Ошибка загрузки офферов"
@@ -113,7 +108,8 @@ export default function MarketPage() {
     setSubmitting(true)
     setError("")
     try {
-      const data = await apiPost<{ offer?: Offer }>("/api/offers", {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data = await apiPost<any>("/api/offers", {
         type: offerForm.type,
         crypto: offerForm.crypto,
         network: offerForm.network,
@@ -124,6 +120,7 @@ export default function MarketPage() {
         maxAmount: maxAmount || undefined,
         paymentInfo: offerForm.paymentInfo || undefined,
       })
+      setDebugInfo(`POST _debug: ${JSON.stringify(data._debug)}`)
       if (data?.offer) {
         setShowCreate(false)
         setOfferForm({ type: "SELL", crypto: "USDT", network: "TRC20", amount: "100", currency: "RUB", rate: "95", minAmount: "", maxAmount: "", paymentInfo: "" })
