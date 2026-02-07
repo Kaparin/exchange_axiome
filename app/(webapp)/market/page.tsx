@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import Link from "next/link"
 import { apiGet, apiPost, apiPatch, apiDelete } from "../../../lib/webapp/client"
 import type { Offer, RequestItem } from "../../../lib/webapp/types"
 import { useMe } from "../../../lib/webapp/use-me"
@@ -64,6 +65,11 @@ export default function MarketPage() {
       setOffersTotal(data.total || 0)
     }
     setLoadingOffers(false)
+  }
+
+  const applyQuickOffer = (overrides: Partial<typeof offerForm>) => {
+    setOfferForm((prev) => ({ ...prev, ...overrides }))
+    setShowCreate(true)
   }
 
   const createOffer = async () => {
@@ -229,6 +235,26 @@ export default function MarketPage() {
 
         <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
           <h2 className="text-lg font-semibold">Быстрые действия</h2>
+          <div className="mt-4 grid gap-2 text-xs">
+            <button
+              type="button"
+              onClick={() =>
+                applyQuickOffer({ type: "BUY", crypto: "USDT", network: "TRC20", currency: "RUB" })
+              }
+              className="rounded-lg bg-white/10 px-3 py-2 text-left"
+            >
+              Купить USDT за RUB (TRC20)
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                applyQuickOffer({ type: "SELL", crypto: "USDT", network: "TRC20", currency: "RUB" })
+              }
+              className="rounded-lg bg-white/10 px-3 py-2 text-left"
+            >
+              Продать USDT за RUB (TRC20)
+            </button>
+          </div>
           <button
             type="button"
             onClick={() => setShowCreate(true)}
@@ -269,6 +295,11 @@ export default function MarketPage() {
                   Осталось: {offer.remaining} • Заявок: {offer._count?.requests || 0}
                 </div>
                 {offer.paymentInfo && <div className="mt-2 text-xs text-white/50">Оплата: {offer.paymentInfo}</div>}
+                <div className="mt-3">
+                  <Link href={`/market/${offer.id}`} className="text-xs text-blue-300 hover:text-blue-200">
+                    Детали оффера
+                  </Link>
+                </div>
 
                 {!isOwner(offer) ? (
                   <div className="mt-3 flex items-center gap-2">

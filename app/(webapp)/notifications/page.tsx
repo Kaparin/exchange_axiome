@@ -20,26 +20,34 @@ export default function NotificationsPage() {
   return (
     <div className="space-y-6">
       <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-        <h2 className="text-lg font-semibold">Уведомления</h2>
-        <div className="mt-3 flex gap-2">
-          <button type="button" onClick={loadNotifications} className="rounded-lg bg-white/10 px-3 py-2 text-xs">
-            Обновить
-          </button>
-          <button type="button" onClick={markRead} className="rounded-lg bg-white/10 px-3 py-2 text-xs">
-            Пометить прочитанными
-          </button>
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Уведомления</h2>
+          <div className="flex gap-2">
+            <button type="button" onClick={loadNotifications} className="rounded-lg bg-white/10 px-3 py-2 text-xs">
+              Обновить
+            </button>
+            <button type="button" onClick={markRead} className="rounded-lg bg-blue-600 px-3 py-2 text-xs">
+              Прочитать все
+            </button>
+          </div>
         </div>
       </div>
 
       <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
         <ul className="mt-4 space-y-2 text-sm">
-          {notifications.map((n) => (
-            <li key={n.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
-              <div className="font-medium">{n.title}</div>
-              <div className="text-xs text-white/60">{n.type}</div>
-              <div className="text-xs text-white/60">{n.body}</div>
+          {notifications.length === 0 ? (
+            <li className="rounded-xl border border-white/10 bg-white/5 p-3 text-white/60">
+              Пока нет уведомлений.
             </li>
-          ))}
+          ) : (
+            notifications.map((n) => (
+              <li key={n.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
+                <div className="font-medium">{n.title}</div>
+                <div className="text-xs text-white/60">{n.type}</div>
+                <div className="text-xs text-white/60">{n.body}</div>
+              </li>
+            ))
+          )}
         </ul>
       </div>
     </div>

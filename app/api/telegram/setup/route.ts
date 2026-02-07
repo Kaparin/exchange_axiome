@@ -2,6 +2,8 @@ import { type NextRequest, NextResponse } from "next/server"
 import { getBot } from "../../../../lib/telegram/bot"
 import { isValidApiKey } from "../../../../lib/admin"
 
+export const dynamic = "force-dynamic"
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
