@@ -15,8 +15,10 @@ export async function GET(req: Request) {
   const crypto = searchParams.get("crypto")
   const network = searchParams.get("network")
   const currency = searchParams.get("currency")
-  const minRate = Number(searchParams.get("minRate") || "")
-  const maxRate = Number(searchParams.get("maxRate") || "")
+  const minRateStr = searchParams.get("minRate")
+  const maxRateStr = searchParams.get("maxRate")
+  const minRate = minRateStr ? Number(minRateStr) : NaN
+  const maxRate = maxRateStr ? Number(maxRateStr) : NaN
   const page = Number(searchParams.get("page") || "1")
   const pageSize = Number(searchParams.get("pageSize") || "20")
 
@@ -52,12 +54,8 @@ export async function GET(req: Request) {
   })
 
   const total = await prisma.offer.count({ where })
-  const totalAll = await prisma.offer.count()
 
-  return NextResponse.json({
-    ok: true, offers, page, pageSize, total,
-    _debug: { where: JSON.stringify(where), totalAll },
-  })
+  return NextResponse.json({ ok: true, offers, page, pageSize, total })
 }
 
 export async function POST(req: Request) {
@@ -103,19 +101,5 @@ export async function POST(req: Request) {
     },
   })
 
-  // Debug: verify the offer was actually saved
-  const totalAfter = await prisma.offer.count()
-  const verify = await prisma.offer.findUnique({ where: { id: offer.id } })
-
-  return NextResponse.json({
-    ok: true,
-    offer,
-    _debug: {
-      prismaCountAfter: totalAfter,
-      verifyFound: !!verify,
-      verifyStatus: verify?.status,
-      createdId: offer.id,
-      dbUrl: (process.env.DATABASE_URL || "").replace(/\/\/.*@/, "//***@").split("?")[0],
-    },
-  })
+  return NextResponse.json({ ok: true, offer })
 }

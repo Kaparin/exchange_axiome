@@ -49,7 +49,6 @@ export default function MarketPage() {
   const [showRequests, setShowRequests] = useState(true)
   const [error, setError] = useState("")
   const [submitting, setSubmitting] = useState(false)
-  const [debugInfo, setDebugInfo] = useState("")
 
   const isOwner = useMemo(
     () => (offer: Offer) => offer.userId && offer.userId === me?.user?.id,
@@ -67,19 +66,13 @@ export default function MarketPage() {
 
     setLoadingOffers(true)
     setError("")
-    const url = `/api/offers?${params.toString()}`
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const data = await apiGet<any>(url)
+      const data = await apiGet<{ offers: Offer[]; total: number }>(`/api/offers?${params.toString()}`)
       setOffers(data.offers || [])
       setOffersTotal(data.total || 0)
-      setDebugInfo(
-        `offers=${data.offers?.length} total=${data.total} | API _debug: ${JSON.stringify(data._debug)}`
-      )
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Ошибка загрузки офферов"
       setError(msg)
-      setDebugInfo(`GET ${url} → ERROR: ${msg}`)
     } finally {
       setLoadingOffers(false)
     }
@@ -108,8 +101,7 @@ export default function MarketPage() {
     setSubmitting(true)
     setError("")
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const data = await apiPost<any>("/api/offers", {
+      const data = await apiPost<{ offer?: Offer }>("/api/offers", {
         type: offerForm.type,
         crypto: offerForm.crypto,
         network: offerForm.network,
@@ -120,7 +112,6 @@ export default function MarketPage() {
         maxAmount: maxAmount || undefined,
         paymentInfo: offerForm.paymentInfo || undefined,
       })
-      setDebugInfo(`POST _debug: ${JSON.stringify(data._debug)}`)
       if (data?.offer) {
         setShowCreate(false)
         setOfferForm({ type: "SELL", crypto: "USDT", network: "TRC20", amount: "100", currency: "RUB", rate: "95", minAmount: "", maxAmount: "", paymentInfo: "" })
@@ -266,10 +257,6 @@ export default function MarketPage() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 text-xs text-yellow-300">
-        DEBUG: offers.length={offers.length} total={offersTotal} loading={String(loadingOffers)} meId={me?.user?.id || "null"} | {debugInfo || "no load yet"}
-      </div>
-
       {error && (
         <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
           {error}
