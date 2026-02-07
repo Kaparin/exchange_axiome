@@ -49,6 +49,7 @@ export default function MarketPage() {
   const [showRequests, setShowRequests] = useState(true)
   const [error, setError] = useState("")
   const [submitting, setSubmitting] = useState(false)
+  const [debugInfo, setDebugInfo] = useState("")
 
   const isOwner = useMemo(
     () => (offer: Offer) => offer.userId && offer.userId === me?.user?.id,
@@ -66,12 +67,16 @@ export default function MarketPage() {
 
     setLoadingOffers(true)
     setError("")
+    const url = `/api/offers?${params.toString()}`
     try {
-      const data = await apiGet<{ offers: Offer[]; total: number }>(`/api/offers?${params.toString()}`)
+      const data = await apiGet<{ offers: Offer[]; total: number }>(url)
       setOffers(data.offers || [])
       setOffersTotal(data.total || 0)
+      setDebugInfo(`GET ${url} → ${data.offers?.length ?? "null"} offers, total=${data.total}`)
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Ошибка загрузки офферов")
+      const msg = e instanceof Error ? e.message : "Ошибка загрузки офферов"
+      setError(msg)
+      setDebugInfo(`GET ${url} → ERROR: ${msg}`)
     } finally {
       setLoadingOffers(false)
     }
@@ -256,6 +261,10 @@ export default function MarketPage() {
 
   return (
     <div className="space-y-6">
+      <div className="rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 text-xs text-yellow-300">
+        DEBUG: offers.length={offers.length} total={offersTotal} loading={String(loadingOffers)} meId={me?.user?.id || "null"} | {debugInfo || "no load yet"}
+      </div>
+
       {error && (
         <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
           {error}
