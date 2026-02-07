@@ -23,6 +23,10 @@ export async function POST(_: Request, { params }: { params: { id: string } }) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
+  if (request.status !== "ACCEPTED") {
+    return NextResponse.json({ error: "Заявка должна быть принята перед завершением" }, { status: 400 })
+  }
+
   const result = await prisma.$transaction(async (tx) => {
     const updatedRequest = await tx.request.update({
       where: { id: request.id },

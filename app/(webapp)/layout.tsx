@@ -72,27 +72,11 @@ function waitForInitData(maxWaitMs = 1500): Promise<string | null> {
   })
 }
 
-function collectDebugInfo() {
-  if (typeof window === "undefined") return "SSR"
-  const tg = (window as any).Telegram
-  return [
-    `URL: ${window.location.href}`,
-    `Hash: ${window.location.hash || "(empty)"}`,
-    `Telegram: ${tg ? "yes" : "no"}`,
-    `WebApp: ${tg?.WebApp ? "yes" : "no"}`,
-    `initData: ${tg?.WebApp?.initData ? tg.WebApp.initData.slice(0, 50) + "..." : "(empty)"}`,
-    `platform: ${tg?.WebApp?.platform || "unknown"}`,
-  ].join("\n")
-}
-
 export default function WebAppLayout({ children }: { children: ReactNode }) {
   const [authState, setAuthState] = useState<AuthState>({ status: "loading" })
   const [me, setMe] = useState<MeResult | null>(null)
-  const [debug, setDebug] = useState("")
-
   const authorize = async () => {
     const initData = await waitForInitData()
-    setDebug(collectDebugInfo())
     if (!initData) {
       setAuthState({
         status: "error",
@@ -157,11 +141,6 @@ export default function WebAppLayout({ children }: { children: ReactNode }) {
                 >
                   Повторить
                 </button>
-                {debug && (
-                  <pre className="mt-4 max-w-full overflow-x-auto rounded-lg bg-white/5 p-3 text-left text-[10px] text-white/40">
-                    {debug}
-                  </pre>
-                )}
               </>
             )}
           </div>

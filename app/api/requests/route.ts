@@ -53,40 +53,54 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid amount" }, { status: 400 })
   }
 
-  const result = await prisma.$transaction(async (tx) => {
-    const offer = await tx.offer.findUnique({ where: { id: offerId } })
-    if (!offer || offer.status !== "ACTIVE") {
-      throw new Error("Offer not available")
-    }
-    if (offer.remaining < parsedAmount) {
-      throw new Error("Not enough remaining")
-    }
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      const offer = await tx.offer.findUnique({ where: { id: offerId } })
+      if (!offer || offer.status !== "ACTIVE") {
+        throw new Error("Оффер недоступен")
+      }
+      if (offer.userId === session.user.id) {
+        throw new Error("Нельзя создать заявку на свой оффер")
+      }
+      if (offer.minAmount !== null && parsedAmount < offer.minAmount) {
+        throw new Error(`Минимальная сумма: ${offer.minAmount}`)
+      }
+      if (offer.maxAmount !== null && parsedAmount > offer.maxAmount) {
+        throw new Error(`Максимальная сумма: ${offer.maxAmount}`)
+      }
+      if (offer.remaining < parsedAmount) {
+        throw new Error(`Недостаточно остатка. Доступно: ${offer.remaining}`)
+      }
 
-    const request = await tx.request.create({
-      data: {
-        offerId: offer.id,
-        userId: session.user.id,
-        amount: parsedAmount,
-        status: "PENDING",
-      },
+      const request = await tx.request.create({
+        data: {
+          offerId: offer.id,
+          userId: session.user.id,
+          amount: parsedAmount,
+          status: "PENDING",
+        },
+      })
+
+      await tx.offer.update({
+        where: { id: offer.id },
+        data: {
+          remaining: offer.remaining - parsedAmount,
+        },
+      })
+
+      return { request, offer }
     })
 
-    await tx.offer.update({
-      where: { id: offer.id },
-      data: {
-        remaining: offer.remaining - parsedAmount,
-      },
-    })
+    await createNotification(
+      result.offer.userId,
+      "request_created",
+      "Новая заявка",
+      `Заявка на оффер ${result.offer.id} на сумму ${result.request.amount}`,
+    ).catch(() => {})
 
-    return { request, offer }
-  })
-
-  await createNotification(
-    result.offer.userId,
-    "request_created",
-    "Новая заявка",
-    `Заявка на оффер ${result.offer.id} на сумму ${result.request.amount}`,
-  ).catch(() => {})
-
-  return NextResponse.json({ ok: true, request: result.request })
+    return NextResponse.json({ ok: true, request: result.request })
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : "Ошибка создания заявки"
+    return NextResponse.json({ error: message }, { status: 400 })
+  }
 }

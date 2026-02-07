@@ -12,22 +12,42 @@ export default function RatingsPage() {
     comment: "",
   })
   const [showRating, setShowRating] = useState(false)
+  const [error, setError] = useState("")
+  const [success, setSuccess] = useState("")
+  const [submitting, setSubmitting] = useState(false)
+  const [ratedIds, setRatedIds] = useState<Set<string>>(new Set())
 
   const loadTransactions = async () => {
-    const data = await apiGet<{ transactions: TransactionItem[] }>("/api/transactions")
-    if (data?.transactions) setTransactions(data.transactions)
+    setError("")
+    try {
+      const data = await apiGet<{ transactions: TransactionItem[] }>("/api/transactions")
+      if (data?.transactions) setTransactions(data.transactions)
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Ошибка загрузки сделок")
+    }
   }
 
   const createRating = async () => {
-    const data = await apiPost<{ rating?: unknown }>("/api/ratings", {
-      transactionId: ratingForm.transactionId,
-      score: Number(ratingForm.score),
-      comment: ratingForm.comment,
-    })
-    if (data?.rating) {
-      setRatingForm({ transactionId: "", score: "5", comment: "" })
-      setShowRating(false)
-      await loadTransactions()
+    setSubmitting(true)
+    setError("")
+    setSuccess("")
+    try {
+      const data = await apiPost<{ rating?: unknown }>("/api/ratings", {
+        transactionId: ratingForm.transactionId,
+        score: Number(ratingForm.score),
+        comment: ratingForm.comment,
+      })
+      if (data?.rating) {
+        setRatedIds((prev) => new Set(prev).add(ratingForm.transactionId))
+        setRatingForm({ transactionId: "", score: "5", comment: "" })
+        setShowRating(false)
+        setSuccess("Оценка отправлена")
+        await loadTransactions()
+      }
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Ошибка отправки оценки")
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -37,6 +57,19 @@ export default function RatingsPage() {
 
   return (
     <div className="space-y-6">
+      {error && (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+          {error}
+          <button type="button" onClick={() => setError("")} className="ml-2 text-xs text-red-400 hover:text-red-200">✕</button>
+        </div>
+      )}
+      {success && (
+        <div className="rounded-xl border border-green-500/30 bg-green-500/10 px-4 py-3 text-sm text-green-300">
+          {success}
+          <button type="button" onClick={() => setSuccess("")} className="ml-2 text-xs text-green-400 hover:text-green-200">✕</button>
+        </div>
+      )}
+
       <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">Мои сделки</h2>
@@ -51,7 +84,8 @@ export default function RatingsPage() {
             </li>
           ) : (
             transactions.map((tx) => {
-              const canRate = tx.status === "COMPLETED"
+              const canRate = tx.status === "COMPLETED" && !ratedIds.has(tx.id)
+              const alreadyRated = ratedIds.has(tx.id)
               return (
                 <li key={tx.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
                   <div className="text-xs text-white/50">{tx.id}</div>
@@ -59,17 +93,24 @@ export default function RatingsPage() {
                     {tx.amount} {tx.currency} @ {tx.rate}
                   </div>
                   <div className="text-xs text-white/60">{tx.status}</div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!canRate) return
-                      setRatingForm({ ...ratingForm, transactionId: tx.id })
-                      setShowRating(true)
-                    }}
-                    className={`mt-2 rounded-lg px-3 py-1 text-xs ${canRate ? "bg-blue-600" : "bg-white/10"}`}
-                  >
-                    {canRate ? "Оценить сделку" : "Доступно после завершения"}
-                  </button>
+                  <div className="text-xs text-white/40">
+                    {new Date(tx.createdAt).toLocaleString("ru-RU")}
+                  </div>
+                  {alreadyRated ? (
+                    <div className="mt-2 text-xs text-green-300">Оценка отправлена</div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!canRate) return
+                        setRatingForm({ ...ratingForm, transactionId: tx.id })
+                        setShowRating(true)
+                      }}
+                      className={`mt-2 rounded-lg px-3 py-1 text-xs ${canRate ? "bg-blue-600" : "bg-white/10"}`}
+                    >
+                      {canRate ? "Оценить сделку" : "Доступно после завершения"}
+                    </button>
+                  )}
                 </li>
               )
             })
@@ -115,9 +156,10 @@ export default function RatingsPage() {
             <button
               type="button"
               onClick={createRating}
-              className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium"
+              disabled={submitting}
+              className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium disabled:opacity-50"
             >
-              Отправить оценку
+              {submitting ? "Отправка..." : "Отправить оценку"}
             </button>
           </div>
         </div>

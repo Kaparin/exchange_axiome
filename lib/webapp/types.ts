@@ -59,6 +59,14 @@ export type AdminStats = {
 
 export type MeResult = {
   ok?: boolean
-  user?: { id: string; telegramId: string; username?: string | null }
+  user?: {
+    id: string
+    telegramId: string
+    username?: string | null
+    firstName?: string | null
+    lastName?: string | null
+    photoUrl?: string | null
+    languageCode?: string | null
+  }
 }
 

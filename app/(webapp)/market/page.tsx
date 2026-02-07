@@ -47,6 +47,8 @@ export default function MarketPage() {
   const [showQuick, setShowQuick] = useState(true)
   const [showOffers, setShowOffers] = useState(true)
   const [showRequests, setShowRequests] = useState(true)
+  const [error, setError] = useState("")
+  const [submitting, setSubmitting] = useState(false)
 
   const isOwner = useMemo(
     () => (offer: Offer) => offer.userId && offer.userId === me?.user?.id,
@@ -63,12 +65,18 @@ export default function MarketPage() {
     params.set("pageSize", "20")
 
     setLoadingOffers(true)
-    const data = await apiGet<{ offers: Offer[]; total: number }>(`/api/offers?${params.toString()}`)
-    if (data?.offers) {
-      setOffers(data.offers)
-      setOffersTotal(data.total || 0)
+    setError("")
+    try {
+      const data = await apiGet<{ offers: Offer[]; total: number }>(`/api/offers?${params.toString()}`)
+      if (data?.offers) {
+        setOffers(data.offers)
+        setOffersTotal(data.total || 0)
+      }
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Ошибка загрузки офферов")
+    } finally {
+      setLoadingOffers(false)
     }
-    setLoadingOffers(false)
   }
 
   const applyQuickOffer = (overrides: Partial<typeof offerForm>) => {
@@ -77,30 +85,74 @@ export default function MarketPage() {
   }
 
   const createOffer = async () => {
-    const data = await apiPost<{ offer?: Offer }>("/api/offers", {
-      ...offerForm,
-      amount: Number(offerForm.amount),
-      rate: Number(offerForm.rate),
-      minAmount: offerForm.minAmount ? Number(offerForm.minAmount) : undefined,
-      maxAmount: offerForm.maxAmount ? Number(offerForm.maxAmount) : undefined,
-      paymentInfo: offerForm.paymentInfo || undefined,
-    })
-    if (data?.offer) {
-      setShowCreate(false)
-      await loadOffers()
+    const amount = Number(offerForm.amount)
+    const rate = Number(offerForm.rate)
+    const minAmount = offerForm.minAmount ? Number(offerForm.minAmount) : undefined
+    const maxAmount = offerForm.maxAmount ? Number(offerForm.maxAmount) : undefined
+
+    if (!offerForm.type || !offerForm.crypto || !offerForm.network || !offerForm.currency) {
+      setError("Заполните все обязательные поля"); return
+    }
+    if (!amount || amount <= 0) { setError("Сумма должна быть больше 0"); return }
+    if (!rate || rate <= 0) { setError("Курс должен быть больше 0"); return }
+    if (minAmount !== undefined && maxAmount !== undefined && minAmount > maxAmount) {
+      setError("Мин. сумма не может быть больше макс."); return
+    }
+
+    setSubmitting(true)
+    setError("")
+    try {
+      const data = await apiPost<{ offer?: Offer }>("/api/offers", {
+        ...offerForm,
+        amount,
+        rate,
+        minAmount,
+        maxAmount,
+        paymentInfo: offerForm.paymentInfo || undefined,
+      })
+      if (data?.offer) {
+        setShowCreate(false)
+        await loadOffers()
+      }
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Ошибка создания оффера")
+    } finally {
+      setSubmitting(false)
     }
   }
 
   const createRequest = async (offerId: string) => {
     const amount = Number(requestAmountByOffer[offerId] || 0)
-    if (!amount || amount <= 0) return
-    const data = await apiPost<{ request?: RequestItem }>("/api/requests", {
-      offerId,
-      amount,
-    })
-    if (data?.request) {
-      setRequestAmountByOffer((prev) => ({ ...prev, [offerId]: "" }))
-      await loadOffers()
+    if (!amount || amount <= 0) { setError("Укажите сумму заявки"); return }
+
+    const offer = offers.find((o) => o.id === offerId)
+    if (offer) {
+      if (offer.minAmount && amount < offer.minAmount) {
+        setError(`Минимальная сумма: ${offer.minAmount}`); return
+      }
+      if (offer.maxAmount && amount > offer.maxAmount) {
+        setError(`Максимальная сумма: ${offer.maxAmount}`); return
+      }
+      if (amount > offer.remaining) {
+        setError(`Доступно: ${offer.remaining}`); return
+      }
+    }
+
+    setSubmitting(true)
+    setError("")
+    try {
+      const data = await apiPost<{ request?: RequestItem }>("/api/requests", {
+        offerId,
+        amount,
+      })
+      if (data?.request) {
+        setRequestAmountByOffer((prev) => ({ ...prev, [offerId]: "" }))
+        await loadOffers()
+      }
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Ошибка создания заявки")
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -115,35 +167,64 @@ export default function MarketPage() {
   }
 
   const saveOffer = async (offerId: string) => {
-    const data = await apiPatch<{ offer?: Offer }>(`/api/offers/${offerId}`, {
-      rate: editOfferForm.rate ? Number(editOfferForm.rate) : undefined,
-      minAmount: editOfferForm.minAmount ? Number(editOfferForm.minAmount) : undefined,
-      maxAmount: editOfferForm.maxAmount ? Number(editOfferForm.maxAmount) : undefined,
-      paymentInfo: editOfferForm.paymentInfo || undefined,
-    })
-    if (data?.offer) {
-      setEditOfferId(null)
-      await loadOffers()
+    setSubmitting(true)
+    setError("")
+    try {
+      const data = await apiPatch<{ offer?: Offer }>(`/api/offers/${offerId}`, {
+        rate: editOfferForm.rate ? Number(editOfferForm.rate) : undefined,
+        minAmount: editOfferForm.minAmount ? Number(editOfferForm.minAmount) : undefined,
+        maxAmount: editOfferForm.maxAmount ? Number(editOfferForm.maxAmount) : undefined,
+        paymentInfo: editOfferForm.paymentInfo || undefined,
+      })
+      if (data?.offer) {
+        setEditOfferId(null)
+        await loadOffers()
+      }
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Ошибка сохранения")
+    } finally {
+      setSubmitting(false)
     }
   }
 
   const closeOffer = async (offerId: string) => {
-    const data = await apiDelete<{ offer?: Offer }>(`/api/offers/${offerId}`)
-    if (data?.offer) {
-      await loadOffers()
+    setSubmitting(true)
+    setError("")
+    try {
+      const data = await apiDelete<{ offer?: Offer }>(`/api/offers/${offerId}`)
+      if (data?.offer) {
+        await loadOffers()
+      }
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Ошибка закрытия оффера")
+    } finally {
+      setSubmitting(false)
     }
   }
 
   const loadOfferRequests = async (offerId: string) => {
     setActiveOfferId(offerId)
-    const data = await apiGet<{ requests: RequestItem[] }>(`/api/requests?offerId=${offerId}`)
-    if (data?.requests) setOfferRequests(data.requests)
+    setError("")
+    try {
+      const data = await apiGet<{ requests: RequestItem[] }>(`/api/requests?offerId=${offerId}`)
+      if (data?.requests) setOfferRequests(data.requests)
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Ошибка загрузки заявок")
+    }
   }
 
   const updateRequestStatus = async (id: string, action: "accept" | "reject" | "complete") => {
-    const data = await apiPost<{ request?: RequestItem }>(`/api/requests/${id}/${action}`)
-    if (data?.request && activeOfferId) {
-      await loadOfferRequests(activeOfferId)
+    setSubmitting(true)
+    setError("")
+    try {
+      const data = await apiPost<{ request?: RequestItem }>(`/api/requests/${id}/${action}`)
+      if (data?.request && activeOfferId) {
+        await loadOfferRequests(activeOfferId)
+      }
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Ошибка обновления статуса")
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -160,12 +241,26 @@ export default function MarketPage() {
     setOffersPage(1)
   }
 
+  const applyFilters = () => {
+    setOffersPage(1)
+    loadOffers(1)
+  }
+
   useEffect(() => {
     loadOffers().catch(() => {})
   }, [])
 
+  const selectClass = "rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+
   return (
     <div className="space-y-6">
+      {error && (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+          {error}
+          <button type="button" onClick={() => setError("")} className="ml-2 text-xs text-red-400 hover:text-red-200">✕</button>
+        </div>
+      )}
+
       <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
         <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
           <button
@@ -180,7 +275,7 @@ export default function MarketPage() {
             <>
               <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
                 <select
-                  className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+                  className={selectClass}
                   value={offerFilters.type}
                   onChange={(e) => setOfferFilters({ ...offerFilters, type: e.target.value })}
                 >
@@ -189,7 +284,7 @@ export default function MarketPage() {
                   <option value="SELL">Продажа</option>
                 </select>
                 <select
-                  className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+                  className={selectClass}
                   value={offerFilters.status}
                   onChange={(e) => setOfferFilters({ ...offerFilters, status: e.target.value })}
                 >
@@ -198,7 +293,7 @@ export default function MarketPage() {
                   <option value="CLOSED">Закрытые</option>
                 </select>
                 <select
-                  className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+                  className={selectClass}
                   value={offerFilters.crypto}
                   onChange={(e) => setOfferFilters({ ...offerFilters, crypto: e.target.value })}
                 >
@@ -208,7 +303,7 @@ export default function MarketPage() {
                   <option value="ETH">ETH</option>
                 </select>
                 <select
-                  className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+                  className={selectClass}
                   value={offerFilters.network}
                   onChange={(e) => setOfferFilters({ ...offerFilters, network: e.target.value })}
                 >
@@ -218,7 +313,7 @@ export default function MarketPage() {
                   <option value="BEP20">BEP20</option>
                 </select>
                 <select
-                  className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+                  className={selectClass}
                   value={offerFilters.currency}
                   onChange={(e) => setOfferFilters({ ...offerFilters, currency: e.target.value })}
                 >
@@ -229,13 +324,13 @@ export default function MarketPage() {
                 </select>
                 <div className="grid grid-cols-2 gap-2">
                   <input
-                    className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+                    className={selectClass}
                     value={offerFilters.minRate}
                     onChange={(e) => setOfferFilters({ ...offerFilters, minRate: e.target.value })}
                     placeholder="Мин. курс"
                   />
                   <input
-                    className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+                    className={selectClass}
                     value={offerFilters.maxRate}
                     onChange={(e) => setOfferFilters({ ...offerFilters, maxRate: e.target.value })}
                     placeholder="Макс. курс"
@@ -245,7 +340,7 @@ export default function MarketPage() {
               <div className="mt-4 flex flex-wrap gap-2">
                 <button
                   type="button"
-                  onClick={() => loadOffers()}
+                  onClick={applyFilters}
                   className="inline-flex items-center rounded-lg bg-white/10 px-3 py-2 text-xs"
                 >
                   Применить
@@ -355,7 +450,7 @@ export default function MarketPage() {
               offers.map((offer) => (
                 <div key={offer.id} className="rounded-xl border border-white/10 bg-white/5 p-4">
                   <div className="flex items-center justify-between text-xs text-white/60">
-                    <span>{offer.type}</span>
+                    <span>{offer.type === "BUY" ? "Покупка" : "Продажа"}</span>
                     <span>{offer.status || "ACTIVE"}</span>
                   </div>
                   <div className="mt-2 text-lg font-semibold">
@@ -367,6 +462,11 @@ export default function MarketPage() {
                   <div className="mt-2 text-xs text-white/50">
                     Осталось: {offer.remaining} • Заявок: {offer._count?.requests || 0}
                   </div>
+                  {(offer.minAmount || offer.maxAmount) && (
+                    <div className="mt-1 text-xs text-white/50">
+                      Лимиты: {offer.minAmount ?? "—"} – {offer.maxAmount ?? "—"}
+                    </div>
+                  )}
                   {offer.paymentInfo && <div className="mt-2 text-xs text-white/50">Оплата: {offer.paymentInfo}</div>}
                   <div className="mt-3">
                     <Link href={`/market/${offer.id}`} className="text-xs text-blue-300 hover:text-blue-200">
@@ -382,14 +482,15 @@ export default function MarketPage() {
                         onChange={(e) =>
                           setRequestAmountByOffer((prev) => ({ ...prev, [offer.id]: e.target.value }))
                         }
-                        placeholder="Сумма"
+                        placeholder={`Сумма${offer.minAmount ? ` (от ${offer.minAmount})` : ""}`}
                       />
                       <button
                         type="button"
                         onClick={() => createRequest(offer.id)}
-                        className="rounded-lg bg-blue-600 px-3 py-2 text-xs"
+                        disabled={submitting}
+                        className="rounded-lg bg-blue-600 px-3 py-2 text-xs disabled:opacity-50"
                       >
-                        Откликнуться
+                        {submitting ? "..." : "Откликнуться"}
                       </button>
                     </div>
                   ) : (
@@ -411,7 +512,8 @@ export default function MarketPage() {
                       <button
                         type="button"
                         onClick={() => closeOffer(offer.id)}
-                        className="rounded-lg bg-red-500/80 px-3 py-2"
+                        disabled={submitting}
+                        className="rounded-lg bg-red-500/80 px-3 py-2 disabled:opacity-50"
                       >
                         Закрыть
                       </button>
@@ -447,9 +549,10 @@ export default function MarketPage() {
                       <button
                         type="button"
                         onClick={() => saveOffer(offer.id)}
-                        className="col-span-2 rounded-lg bg-blue-600 px-3 py-2 text-xs"
+                        disabled={submitting}
+                        className="col-span-2 rounded-lg bg-blue-600 px-3 py-2 text-xs disabled:opacity-50"
                       >
-                        Сохранить
+                        {submitting ? "Сохранение..." : "Сохранить"}
                       </button>
                     </div>
                   )}
@@ -491,14 +594,16 @@ export default function MarketPage() {
                           <button
                             type="button"
                             onClick={() => updateRequestStatus(request.id, "accept")}
-                            className="rounded-lg bg-green-600 px-3 py-1 text-xs"
+                            disabled={submitting}
+                            className="rounded-lg bg-green-600 px-3 py-1 text-xs disabled:opacity-50"
                           >
                             Принять
                           </button>
                           <button
                             type="button"
                             onClick={() => updateRequestStatus(request.id, "reject")}
-                            className="rounded-lg bg-red-600 px-3 py-1 text-xs"
+                            disabled={submitting}
+                            className="rounded-lg bg-red-600 px-3 py-1 text-xs disabled:opacity-50"
                           >
                             Отклонить
                           </button>
@@ -508,7 +613,8 @@ export default function MarketPage() {
                         <button
                           type="button"
                           onClick={() => updateRequestStatus(request.id, "complete")}
-                          className="rounded-lg bg-blue-600 px-3 py-1 text-xs"
+                          disabled={submitting}
+                          className="rounded-lg bg-blue-600 px-3 py-1 text-xs disabled:opacity-50"
                         >
                           Завершить
                         </button>
@@ -536,53 +642,64 @@ export default function MarketPage() {
               </button>
             </div>
             <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-              <input
-                className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+              <select
+                className={selectClass}
                 value={offerForm.type}
                 onChange={(e) => setOfferForm({ ...offerForm, type: e.target.value })}
-                placeholder="BUY/SELL"
-              />
-              <input
-                className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+              >
+                <option value="BUY">Покупка</option>
+                <option value="SELL">Продажа</option>
+              </select>
+              <select
+                className={selectClass}
                 value={offerForm.crypto}
                 onChange={(e) => setOfferForm({ ...offerForm, crypto: e.target.value })}
-                placeholder="USDT"
-              />
-              <input
-                className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+              >
+                <option value="USDT">USDT</option>
+                <option value="BTC">BTC</option>
+                <option value="ETH">ETH</option>
+              </select>
+              <select
+                className={selectClass}
                 value={offerForm.network}
                 onChange={(e) => setOfferForm({ ...offerForm, network: e.target.value })}
-                placeholder="TRC20"
-              />
+              >
+                <option value="TRC20">TRC20</option>
+                <option value="ERC20">ERC20</option>
+                <option value="BEP20">BEP20</option>
+              </select>
               <input
-                className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+                className={selectClass}
                 value={offerForm.amount}
                 onChange={(e) => setOfferForm({ ...offerForm, amount: e.target.value })}
-                placeholder="Amount"
+                placeholder="Сумма"
               />
-              <input
-                className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+              <select
+                className={selectClass}
                 value={offerForm.currency}
                 onChange={(e) => setOfferForm({ ...offerForm, currency: e.target.value })}
-                placeholder="RUB"
-              />
+              >
+                <option value="RUB">RUB</option>
+                <option value="USD">USD</option>
+                <option value="EUR">EUR</option>
+              </select>
               <input
-                className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+                className={selectClass}
                 value={offerForm.rate}
                 onChange={(e) => setOfferForm({ ...offerForm, rate: e.target.value })}
-                placeholder="Rate"
+                placeholder="Курс"
               />
               <input
-                className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+                className={selectClass}
                 value={offerForm.minAmount}
                 onChange={(e) => setOfferForm({ ...offerForm, minAmount: e.target.value })}
-                placeholder="Min"
+                placeholder="Мин. сумма"
               />
               <input
-                className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+                className={selectClass}
                 value={offerForm.maxAmount}
                 onChange={(e) => setOfferForm({ ...offerForm, maxAmount: e.target.value })}
-                placeholder="Max"
+                placeholder="Макс. сумма"
               />
               <input
                 className="col-span-2 rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
@@ -594,9 +711,10 @@ export default function MarketPage() {
             <button
               type="button"
               onClick={createOffer}
-              className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium"
+              disabled={submitting}
+              className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium disabled:opacity-50"
             >
-              Создать оффер
+              {submitting ? "Создание..." : "Создать оффер"}
             </button>
           </div>
         </div>
