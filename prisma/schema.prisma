@@ -1,0 +1,109 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum OfferType {
+  BUY
+  SELL
+}
+
+enum OfferStatus {
+  ACTIVE
+  CLOSED
+}
+
+enum RequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  CANCELLED
+  PAYMENT_PENDING
+  PAYMENT_SENT
+  PAYMENT_CONFIRMED
+  CRYPTO_SENT
+  COMPLETED
+  DISPUTED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  telegramId   String   @unique
+  username     String?
+  firstName    String?
+  lastName     String?
+  languageCode String?
+  photoUrl     String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  offers       Offer[]
+  requests     Request[]
+  transactions Transaction[]
+  ratings      Rating[] @relation("UserRatings")
+}
+
+model Offer {
+  id          String      @id @default(cuid())
+  userId      String
+  user        User        @relation(fields: [userId], references: [id])
+  type        OfferType
+  status      OfferStatus @default(ACTIVE)
+  crypto      String
+  network     String
+  amount      Float
+  remaining   Float
+  currency    String
+  rate        Float
+  paymentInfo String?
+  minAmount   Float?
+  maxAmount   Float?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  requests    Request[]
+}
+
+model Request {
+  id        String        @id @default(cuid())
+  offerId   String
+  offer     Offer         @relation(fields: [offerId], references: [id])
+  userId    String
+  user      User          @relation(fields: [userId], references: [id])
+  amount    Float
+  status    RequestStatus @default(PENDING)
+  details   String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  transaction Transaction?
+}
+
+model Transaction {
+  id          String   @id @default(cuid())
+  requestId   String   @unique
+  request     Request  @relation(fields: [requestId], references: [id])
+  buyerId     String
+  sellerId    String
+  user        User?    @relation(fields: [buyerId], references: [id])
+  amount      Float
+  currency    String
+  rate        Float
+  status      String
+  createdAt   DateTime @default(now())
+  completedAt DateTime?
+}
+
+model Rating {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation("UserRatings", fields: [userId], references: [id])
+  fromUser  String
+  score     Int
+  comment   String?
+  createdAt DateTime @default(now())
+}
