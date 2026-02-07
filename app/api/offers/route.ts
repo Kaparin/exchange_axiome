@@ -53,18 +53,10 @@ export async function GET(req: Request) {
 
   const total = await prisma.offer.count({ where })
   const totalAll = await prisma.offer.count()
-  const rawCount = await prisma.$queryRawUnsafe<Array<{count: bigint}>>(
-    `SELECT count(*) as count FROM "Offer"`
-  ).catch((e: Error) => [{ count: BigInt(0), error: e.message }])
 
   return NextResponse.json({
     ok: true, offers, page, pageSize, total,
-    _debug: {
-      where: JSON.stringify(where),
-      totalAll,
-      rawSqlCount: String(rawCount?.[0]?.count),
-      rawResult: rawCount,
-    },
+    _debug: { where: JSON.stringify(where), totalAll },
   })
 }
 
@@ -113,18 +105,17 @@ export async function POST(req: Request) {
 
   // Debug: verify the offer was actually saved
   const totalAfter = await prisma.offer.count()
-  const rawCount = await prisma.$queryRawUnsafe<Array<{count: bigint}>>(
-    `SELECT count(*) as count FROM "Offer"`
-  ).catch((e: Error) => [{ count: BigInt(0), error: e.message }])
+  const verify = await prisma.offer.findUnique({ where: { id: offer.id } })
 
   return NextResponse.json({
     ok: true,
     offer,
     _debug: {
-      prismaCount: totalAfter,
-      rawSqlCount: String(rawCount?.[0]?.count),
-      rawResult: rawCount,
+      prismaCountAfter: totalAfter,
+      verifyFound: !!verify,
+      verifyStatus: verify?.status,
       createdId: offer.id,
+      dbUrl: (process.env.DATABASE_URL || "").replace(/\/\/.*@/, "//***@").split("?")[0],
     },
   })
 }
