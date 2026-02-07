@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 
 type AuthResult = {
   ok?: boolean
@@ -141,6 +141,9 @@ export default function Home() {
     comment: "",
   })
   const [adminStats, setAdminStats] = useState<AdminStats | null>(null)
+  const [showDebug, setShowDebug] = useState(false)
+
+  const hasSession = useMemo(() => Boolean(me?.user), [me])
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -409,515 +412,569 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen p-6">
-      <h1 className="text-2xl font-semibold">Telegram Mini App</h1>
-      <p className="text-sm text-gray-600 mt-2">{status}</p>
+    <main
+      className="min-h-screen bg-black text-white"
+      style={{
+        backgroundImage: "url('/Futuristic cryptocurrency exchange interface design.png')",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+      }}
+    >
+      <div className="min-h-screen bg-black/80">
+        <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
+          <div className="flex items-center gap-4">
+            <img src="/logo.png" alt="Exchange Axiome" className="h-12 w-12 rounded-xl" />
+            <div>
+              <h1 className="text-2xl font-semibold">Exchange Axiome</h1>
+              <p className="text-xs text-white/60">Telegram Mini App</p>
+            </div>
+          </div>
+          <div className="text-xs text-white/60">{status}</div>
+        </header>
 
-      <button
-        type="button"
-        onClick={handleAuth}
-        className="mt-6 inline-flex items-center rounded-md bg-black px-4 py-2 text-white"
-      >
-        Проверить авторизацию
-      </button>
+        <section className="mx-auto max-w-6xl px-6 pb-10">
+          <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur">
+              <h2 className="text-lg font-semibold">Сессия</h2>
+              <p className="mt-2 text-xs text-white/60">
+                {hasSession ? `Пользователь: ${me?.user?.username || me?.user?.telegramId}` : "Сессия не найдена"}
+              </p>
+              <button
+                type="button"
+                onClick={handleAuth}
+                className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium"
+              >
+                Проверить авторизацию
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowDebug((prev) => !prev)}
+                className="mt-2 inline-flex w-full items-center justify-center rounded-xl border border-white/15 px-4 py-2 text-xs text-white/70"
+              >
+                {showDebug ? "Скрыть диагностику" : "Показать диагностику"}
+              </button>
+            </div>
 
-      <div className="mt-3 text-sm text-gray-600">
-        {me?.user ? `Пользователь: ${me.user.username || me.user.telegramId}` : "Сессия не найдена"}
-      </div>
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur">
+              <h2 className="text-lg font-semibold">Фильтры офферов</h2>
+              <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                <input
+                  className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+                  value={offerFilters.type}
+                  onChange={(e) => setOfferFilters({ ...offerFilters, type: e.target.value })}
+                  placeholder="Type (BUY/SELL)"
+                />
+                <input
+                  className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+                  value={offerFilters.status}
+                  onChange={(e) => setOfferFilters({ ...offerFilters, status: e.target.value })}
+                  placeholder="Status"
+                />
+                <input
+                  className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+                  value={offerFilters.crypto}
+                  onChange={(e) => setOfferFilters({ ...offerFilters, crypto: e.target.value })}
+                  placeholder="Crypto"
+                />
+                <input
+                  className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+                  value={offerFilters.network}
+                  onChange={(e) => setOfferFilters({ ...offerFilters, network: e.target.value })}
+                  placeholder="Network"
+                />
+                <input
+                  className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+                  value={offerFilters.currency}
+                  onChange={(e) => setOfferFilters({ ...offerFilters, currency: e.target.value })}
+                  placeholder="Currency"
+                />
+                <input
+                  className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+                  value={offerFilters.minRate}
+                  onChange={(e) => setOfferFilters({ ...offerFilters, minRate: e.target.value })}
+                  placeholder="Min rate"
+                />
+                <input
+                  className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+                  value={offerFilters.maxRate}
+                  onChange={(e) => setOfferFilters({ ...offerFilters, maxRate: e.target.value })}
+                  placeholder="Max rate"
+                />
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={loadOffers}
+                  className="inline-flex items-center rounded-lg bg-white/10 px-3 py-2 text-xs text-white"
+                >
+                  Обновить список
+                </button>
+                <button
+                  type="button"
+                  onClick={loadMyOffers}
+                  className="inline-flex items-center rounded-lg bg-white/10 px-3 py-2 text-xs text-white"
+                >
+                  Мои офферы
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const nextPage = Math.max(1, offersPage - 1)
+                    setOffersPage(nextPage)
+                    loadOffers(nextPage)
+                  }}
+                  className="inline-flex items-center rounded-lg bg-white/10 px-3 py-2 text-xs text-white"
+                >
+                  Назад
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const nextPage = offersPage + 1
+                    setOffersPage(nextPage)
+                    loadOffers(nextPage)
+                  }}
+                  className="inline-flex items-center rounded-lg bg-white/10 px-3 py-2 text-xs text-white"
+                >
+                  Вперед
+                </button>
+                <span className="text-xs text-white/50">
+                  Страница {offersPage} • Всего: {offersTotal}
+                </span>
+              </div>
+            </div>
+          </div>
 
-      <div className="mt-8 rounded-md border p-4">
-        <h2 className="text-lg font-semibold">Офферы</h2>
-        <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
-          <input
-            className="rounded border px-2 py-1"
-            value={offerFilters.type}
-            onChange={(e) => setOfferFilters({ ...offerFilters, type: e.target.value })}
-            placeholder="Type (BUY/SELL)"
-          />
-          <input
-            className="rounded border px-2 py-1"
-            value={offerFilters.status}
-            onChange={(e) => setOfferFilters({ ...offerFilters, status: e.target.value })}
-            placeholder="Status (ACTIVE/CLOSED)"
-          />
-          <input
-            className="rounded border px-2 py-1"
-            value={offerFilters.crypto}
-            onChange={(e) => setOfferFilters({ ...offerFilters, crypto: e.target.value })}
-            placeholder="Crypto"
-          />
-          <input
-            className="rounded border px-2 py-1"
-            value={offerFilters.network}
-            onChange={(e) => setOfferFilters({ ...offerFilters, network: e.target.value })}
-            placeholder="Network"
-          />
-          <input
-            className="rounded border px-2 py-1"
-            value={offerFilters.currency}
-            onChange={(e) => setOfferFilters({ ...offerFilters, currency: e.target.value })}
-            placeholder="Currency"
-          />
-          <input
-            className="rounded border px-2 py-1"
-            value={offerFilters.minRate}
-            onChange={(e) => setOfferFilters({ ...offerFilters, minRate: e.target.value })}
-            placeholder="Min rate"
-          />
-          <input
-            className="rounded border px-2 py-1"
-            value={offerFilters.maxRate}
-            onChange={(e) => setOfferFilters({ ...offerFilters, maxRate: e.target.value })}
-            placeholder="Max rate"
-          />
-        </div>
-        <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
-          <input
-            className="rounded border px-2 py-1"
-            value={offerForm.type}
-            onChange={(e) => setOfferForm({ ...offerForm, type: e.target.value })}
-            placeholder="BUY/SELL"
-          />
-          <input
-            className="rounded border px-2 py-1"
-            value={offerForm.crypto}
-            onChange={(e) => setOfferForm({ ...offerForm, crypto: e.target.value })}
-            placeholder="USDT"
-          />
-          <input
-            className="rounded border px-2 py-1"
-            value={offerForm.network}
-            onChange={(e) => setOfferForm({ ...offerForm, network: e.target.value })}
-            placeholder="TRC20"
-          />
-          <input
-            className="rounded border px-2 py-1"
-            value={offerForm.amount}
-            onChange={(e) => setOfferForm({ ...offerForm, amount: e.target.value })}
-            placeholder="Amount"
-          />
-          <input
-            className="rounded border px-2 py-1"
-            value={offerForm.currency}
-            onChange={(e) => setOfferForm({ ...offerForm, currency: e.target.value })}
-            placeholder="RUB"
-          />
-          <input
-            className="rounded border px-2 py-1"
-            value={offerForm.rate}
-            onChange={(e) => setOfferForm({ ...offerForm, rate: e.target.value })}
-            placeholder="Rate"
-          />
-        </div>
-        <div className="mt-3 flex gap-2">
-          <button
-            type="button"
-            onClick={createOffer}
-            className="inline-flex items-center rounded-md bg-blue-600 px-3 py-1.5 text-white"
-          >
-            Создать
-          </button>
-          <button
-            type="button"
-            onClick={loadOffers}
-            className="inline-flex items-center rounded-md bg-gray-200 px-3 py-1.5 text-gray-900"
-          >
-            Обновить список
-          </button>
-          <button
-            type="button"
-            onClick={loadMyOffers}
-            className="inline-flex items-center rounded-md bg-gray-200 px-3 py-1.5 text-gray-900"
-          >
-            Мои офферы
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              const nextPage = Math.max(1, offersPage - 1)
-              setOffersPage(nextPage)
-              loadOffers(nextPage)
-            }}
-            className="inline-flex items-center rounded-md bg-gray-200 px-3 py-1.5 text-gray-900"
-          >
-            Назад
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              const nextPage = offersPage + 1
-              setOffersPage(nextPage)
-              loadOffers(nextPage)
-            }}
-            className="inline-flex items-center rounded-md bg-gray-200 px-3 py-1.5 text-gray-900"
-          >
-            Вперед
-          </button>
-        </div>
-        <div className="mt-2 text-xs text-gray-500">
-          Страница {offersPage} • Всего: {offersTotal}
-        </div>
-        <ul className="mt-4 space-y-2 text-sm">
-          {offers.map((offer) => (
-            <li key={offer.id} className="rounded border p-2">
-              <div className="font-mono text-xs text-gray-500">{offer.id}</div>
-              {offer.type} {offer.amount} {offer.crypto} @ {offer.rate} {offer.currency} ({offer.network})
-              <div className="text-xs text-gray-500">
-                Статус: {offer.status || "ACTIVE"} • Осталось: {offer.remaining} • Заявок: {offer._count?.requests || 0}
+          <div className="mt-8 grid gap-6 lg:grid-cols-[420px_1fr]">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur">
+              <h2 className="text-lg font-semibold">Создать оффер</h2>
+              <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                <input
+                  className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+                  value={offerForm.type}
+                  onChange={(e) => setOfferForm({ ...offerForm, type: e.target.value })}
+                  placeholder="BUY/SELL"
+                />
+                <input
+                  className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+                  value={offerForm.crypto}
+                  onChange={(e) => setOfferForm({ ...offerForm, crypto: e.target.value })}
+                  placeholder="USDT"
+                />
+                <input
+                  className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+                  value={offerForm.network}
+                  onChange={(e) => setOfferForm({ ...offerForm, network: e.target.value })}
+                  placeholder="TRC20"
+                />
+                <input
+                  className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+                  value={offerForm.amount}
+                  onChange={(e) => setOfferForm({ ...offerForm, amount: e.target.value })}
+                  placeholder="Amount"
+                />
+                <input
+                  className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+                  value={offerForm.currency}
+                  onChange={(e) => setOfferForm({ ...offerForm, currency: e.target.value })}
+                  placeholder="RUB"
+                />
+                <input
+                  className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+                  value={offerForm.rate}
+                  onChange={(e) => setOfferForm({ ...offerForm, rate: e.target.value })}
+                  placeholder="Rate"
+                />
               </div>
               <button
                 type="button"
-                onClick={() => loadOfferRequests(offer.id)}
-                className="mt-2 inline-flex items-center rounded-md bg-gray-200 px-2 py-1 text-xs text-gray-900"
+                onClick={createOffer}
+                className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium"
               >
-                Показать заявки
+                Создать оффер
               </button>
-              {offer.userId === me?.user?.id && (
-                <div className="mt-2 flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => startEditOffer(offer)}
-                    className="rounded bg-gray-200 px-2 py-1 text-xs text-gray-900"
-                  >
-                    Редактировать
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => closeOffer(offer.id)}
-                    className="rounded bg-red-600 px-2 py-1 text-xs text-white"
-                  >
-                    Закрыть
-                  </button>
-                </div>
-              )}
-              {editOfferId === offer.id && (
-                <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-                  <input
-                    className="rounded border px-2 py-1"
-                    value={editOfferForm.rate}
-                    onChange={(e) => setEditOfferForm({ ...editOfferForm, rate: e.target.value })}
-                    placeholder="Rate"
-                  />
-                  <input
-                    className="rounded border px-2 py-1"
-                    value={editOfferForm.minAmount}
-                    onChange={(e) => setEditOfferForm({ ...editOfferForm, minAmount: e.target.value })}
-                    placeholder="Min"
-                  />
-                  <input
-                    className="rounded border px-2 py-1"
-                    value={editOfferForm.maxAmount}
-                    onChange={(e) => setEditOfferForm({ ...editOfferForm, maxAmount: e.target.value })}
-                    placeholder="Max"
-                  />
-                  <input
-                    className="rounded border px-2 py-1"
-                    value={editOfferForm.paymentInfo}
-                    onChange={(e) => setEditOfferForm({ ...editOfferForm, paymentInfo: e.target.value })}
-                    placeholder="Payment info"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => saveOffer(offer.id)}
-                    className="col-span-2 rounded bg-blue-600 px-2 py-1 text-xs text-white"
-                  >
-                    Сохранить
-                  </button>
-                </div>
-              )}
-            </li>
-          ))}
-        </ul>
-      </div>
+            </div>
 
-      {activeOfferId && (
-        <div className="mt-6 rounded-md border p-4">
-          <h3 className="text-md font-semibold">Заявки по офферу</h3>
-          <div className="text-xs text-gray-500">{activeOfferId}</div>
-          <ul className="mt-3 space-y-2 text-sm">
-            {offerRequests.map((request) => {
-              const isOwner = request.offer.userId === me?.user?.id
-              const isRequester = request.userId === me?.user?.id
-              return (
-                <li key={request.id} className="rounded border p-2">
-                  <div className="font-mono text-xs text-gray-500">{request.id}</div>
-                  {request.amount} {request.offer.crypto} @ {request.offer.rate} {request.offer.currency} •{" "}
-                  {request.status}
-                  <div className="mt-2 flex gap-2">
-                    {isOwner && request.status === "PENDING" && (
-                      <>
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur">
+              <h2 className="text-lg font-semibold">Офферы</h2>
+              <ul className="mt-4 space-y-3 text-sm">
+                {offers.map((offer) => (
+                  <li key={offer.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-xs text-white/50">{offer.id}</div>
+                        <div className="font-semibold">
+                          {offer.type} {offer.amount} {offer.crypto} @ {offer.rate} {offer.currency}
+                        </div>
+                        <div className="text-xs text-white/50">
+                          {offer.network} • Статус: {offer.status || "ACTIVE"} • Осталось: {offer.remaining} • Заявок:{" "}
+                          {offer._count?.requests || 0}
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-2">
                         <button
                           type="button"
-                          onClick={() => updateRequestStatus(request.id, "accept")}
-                          className="rounded bg-green-600 px-2 py-1 text-xs text-white"
+                          onClick={() => loadOfferRequests(offer.id)}
+                          className="rounded-lg bg-white/10 px-3 py-1 text-xs"
                         >
-                          Принять
+                          Заявки
                         </button>
+                        {offer.userId === me?.user?.id && (
+                          <button
+                            type="button"
+                            onClick={() => closeOffer(offer.id)}
+                            className="rounded-lg bg-red-500/80 px-3 py-1 text-xs"
+                          >
+                            Закрыть
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    {offer.userId === me?.user?.id && editOfferId === offer.id && (
+                      <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                        <input
+                          className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+                          value={editOfferForm.rate}
+                          onChange={(e) => setEditOfferForm({ ...editOfferForm, rate: e.target.value })}
+                          placeholder="Rate"
+                        />
+                        <input
+                          className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+                          value={editOfferForm.minAmount}
+                          onChange={(e) => setEditOfferForm({ ...editOfferForm, minAmount: e.target.value })}
+                          placeholder="Min"
+                        />
+                        <input
+                          className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+                          value={editOfferForm.maxAmount}
+                          onChange={(e) => setEditOfferForm({ ...editOfferForm, maxAmount: e.target.value })}
+                          placeholder="Max"
+                        />
+                        <input
+                          className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+                          value={editOfferForm.paymentInfo}
+                          onChange={(e) => setEditOfferForm({ ...editOfferForm, paymentInfo: e.target.value })}
+                          placeholder="Payment info"
+                        />
                         <button
                           type="button"
-                          onClick={() => updateRequestStatus(request.id, "reject")}
-                          className="rounded bg-red-600 px-2 py-1 text-xs text-white"
+                          onClick={() => saveOffer(offer.id)}
+                          className="col-span-2 rounded-lg bg-blue-600 px-3 py-2 text-xs"
                         >
-                          Отклонить
+                          Сохранить
                         </button>
-                      </>
+                      </div>
                     )}
-                    {(isOwner || isRequester) && request.status === "ACCEPTED" && (
+                    {offer.userId === me?.user?.id && editOfferId !== offer.id && (
                       <button
                         type="button"
-                        onClick={() => updateRequestStatus(request.id, "complete")}
-                        className="rounded bg-blue-600 px-2 py-1 text-xs text-white"
+                        onClick={() => startEditOffer(offer)}
+                        className="mt-3 rounded-lg bg-white/10 px-3 py-1 text-xs"
                       >
-                        Завершить
+                        Редактировать
                       </button>
                     )}
-                  </div>
-                </li>
-              )
-            })}
-          </ul>
-        </div>
-      )}
-
-      <div className="mt-8 rounded-md border p-4">
-        <h2 className="text-lg font-semibold">Заявки</h2>
-        <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
-          <input
-            className="rounded border px-2 py-1"
-            value={requestFilters.status}
-            onChange={(e) => setRequestFilters({ ...requestFilters, status: e.target.value })}
-            placeholder="Status (PENDING/ACCEPTED/...)"
-          />
-        </div>
-        <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
-          <input
-            className="rounded border px-2 py-1 col-span-2"
-            value={requestForm.offerId}
-            onChange={(e) => setRequestForm({ ...requestForm, offerId: e.target.value })}
-            placeholder="Offer ID"
-          />
-          <input
-            className="rounded border px-2 py-1"
-            value={requestForm.amount}
-            onChange={(e) => setRequestForm({ ...requestForm, amount: e.target.value })}
-            placeholder="Amount"
-          />
-        </div>
-        <div className="mt-3 flex gap-2">
-          <button
-            type="button"
-            onClick={createRequest}
-            className="inline-flex items-center rounded-md bg-blue-600 px-3 py-1.5 text-white"
-          >
-            Создать заявку
-          </button>
-          <button
-            type="button"
-            onClick={loadRequests}
-            className="inline-flex items-center rounded-md bg-gray-200 px-3 py-1.5 text-gray-900"
-          >
-            Мои заявки
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              const nextPage = Math.max(1, requestsPage - 1)
-              setRequestsPage(nextPage)
-              loadRequests(nextPage)
-            }}
-            className="inline-flex items-center rounded-md bg-gray-200 px-3 py-1.5 text-gray-900"
-          >
-            Назад
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              const nextPage = requestsPage + 1
-              setRequestsPage(nextPage)
-              loadRequests(nextPage)
-            }}
-            className="inline-flex items-center rounded-md bg-gray-200 px-3 py-1.5 text-gray-900"
-          >
-            Вперед
-          </button>
-        </div>
-        <div className="mt-2 text-xs text-gray-500">
-          Страница {requestsPage} • Всего: {requestsTotal}
-        </div>
-        <ul className="mt-4 space-y-2 text-sm">
-          {requests.map((request) => (
-            <li key={request.id} className="rounded border p-2">
-              <div className="font-mono text-xs text-gray-500">{request.id}</div>
-              {request.amount} {request.offer.crypto} @ {request.offer.rate} {request.offer.currency} •{" "}
-              {request.status}
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      <div className="mt-8 rounded-md border p-4">
-        <h2 className="text-lg font-semibold">Транзакции</h2>
-        <button
-          type="button"
-          onClick={loadTransactions}
-          className="mt-3 inline-flex items-center rounded-md bg-gray-200 px-3 py-1.5 text-gray-900"
-        >
-          Обновить список
-        </button>
-        <ul className="mt-4 space-y-2 text-sm">
-          {transactions.map((tx) => (
-            <li key={tx.id} className="rounded border p-2">
-              <div className="font-mono text-xs text-gray-500">{tx.id}</div>
-              {tx.amount} {tx.currency} @ {tx.rate} • {tx.status}
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      <div className="mt-8 rounded-md border p-4">
-        <h2 className="text-lg font-semibold">Кошельки/реквизиты</h2>
-        <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
-          <input
-            className="rounded border px-2 py-1"
-            value={walletForm.type}
-            onChange={(e) => setWalletForm({ ...walletForm, type: e.target.value })}
-            placeholder="Тип (card, bank, crypto)"
-          />
-          <input
-            className="rounded border px-2 py-1"
-            value={walletForm.label}
-            onChange={(e) => setWalletForm({ ...walletForm, label: e.target.value })}
-            placeholder="Метка"
-          />
-          <input
-            className="rounded border px-2 py-1 col-span-2"
-            value={walletForm.value}
-            onChange={(e) => setWalletForm({ ...walletForm, value: e.target.value })}
-            placeholder="Реквизиты"
-          />
-          <label className="flex items-center gap-2 text-xs">
-            <input
-              type="checkbox"
-              checked={walletForm.isDefault}
-              onChange={(e) => setWalletForm({ ...walletForm, isDefault: e.target.checked })}
-            />
-            По умолчанию
-          </label>
-        </div>
-        <div className="mt-3 flex gap-2">
-          <button
-            type="button"
-            onClick={createWallet}
-            className="inline-flex items-center rounded-md bg-blue-600 px-3 py-1.5 text-white"
-          >
-            Добавить
-          </button>
-          <button
-            type="button"
-            onClick={loadWallets}
-            className="inline-flex items-center rounded-md bg-gray-200 px-3 py-1.5 text-gray-900"
-          >
-            Мои реквизиты
-          </button>
-        </div>
-        <ul className="mt-4 space-y-2 text-sm">
-          {wallets.map((wallet) => (
-            <li key={wallet.id} className="rounded border p-2">
-              {wallet.type} • {wallet.label || "без метки"} • {wallet.value}{" "}
-              {wallet.isDefault ? "(default)" : ""}
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      <div className="mt-8 rounded-md border p-4">
-        <h2 className="text-lg font-semibold">Уведомления</h2>
-        <div className="mt-3 flex gap-2">
-          <button
-            type="button"
-            onClick={loadNotifications}
-            className="inline-flex items-center rounded-md bg-gray-200 px-3 py-1.5 text-gray-900"
-          >
-            Обновить
-          </button>
-          <button
-            type="button"
-            onClick={markNotificationsRead}
-            className="inline-flex items-center rounded-md bg-gray-200 px-3 py-1.5 text-gray-900"
-          >
-            Пометить прочитанными
-          </button>
-        </div>
-        <ul className="mt-4 space-y-2 text-sm">
-          {notifications.map((n) => (
-            <li key={n.id} className="rounded border p-2">
-              <div className="font-medium">{n.title}</div>
-              <div className="text-xs text-gray-500">{n.type}</div>
-              <div className="text-xs text-gray-500">{n.body}</div>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      <div className="mt-8 rounded-md border p-4">
-        <h2 className="text-lg font-semibold">Оценка сделки</h2>
-        <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
-          <input
-            className="rounded border px-2 py-1 col-span-2"
-            value={ratingForm.transactionId}
-            onChange={(e) => setRatingForm({ ...ratingForm, transactionId: e.target.value })}
-            placeholder="Transaction ID"
-          />
-          <input
-            className="rounded border px-2 py-1"
-            value={ratingForm.score}
-            onChange={(e) => setRatingForm({ ...ratingForm, score: e.target.value })}
-            placeholder="Score 1-5"
-          />
-          <input
-            className="rounded border px-2 py-1 col-span-2"
-            value={ratingForm.comment}
-            onChange={(e) => setRatingForm({ ...ratingForm, comment: e.target.value })}
-            placeholder="Комментарий"
-          />
-        </div>
-        <button
-          type="button"
-          onClick={createRating}
-          className="mt-3 inline-flex items-center rounded-md bg-blue-600 px-3 py-1.5 text-white"
-        >
-          Оценить
-        </button>
-      </div>
-
-      <div className="mt-8 rounded-md border p-4">
-        <h2 className="text-lg font-semibold">Админка</h2>
-        <button
-          type="button"
-          onClick={loadAdminStats}
-          className="mt-3 inline-flex items-center rounded-md bg-gray-200 px-3 py-1.5 text-gray-900"
-        >
-          Статистика
-        </button>
-        {adminStats && (
-          <div className="mt-3 text-sm">
-            Пользователи: {adminStats.users} • Офферы: {adminStats.offers} • Заявки: {adminStats.requests} •
-            Транзакции: {adminStats.transactions}
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
-        )}
+
+          {activeOfferId && (
+            <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur">
+              <h3 className="text-md font-semibold">Заявки по офферу</h3>
+              <div className="text-xs text-white/50">{activeOfferId}</div>
+              <ul className="mt-3 space-y-2 text-sm">
+                {offerRequests.map((request) => {
+                  const isOwner = request.offer.userId === me?.user?.id
+                  const isRequester = request.userId === me?.user?.id
+                  return (
+                    <li key={request.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
+                      <div className="text-xs text-white/50">{request.id}</div>
+                      <div className="text-sm font-semibold">
+                        {request.amount} {request.offer.crypto} @ {request.offer.rate} {request.offer.currency}
+                      </div>
+                      <div className="text-xs text-white/50">{request.status}</div>
+                      <div className="mt-2 flex gap-2">
+                        {isOwner && request.status === "PENDING" && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => updateRequestStatus(request.id, "accept")}
+                              className="rounded-lg bg-green-600 px-3 py-1 text-xs"
+                            >
+                              Принять
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => updateRequestStatus(request.id, "reject")}
+                              className="rounded-lg bg-red-600 px-3 py-1 text-xs"
+                            >
+                              Отклонить
+                            </button>
+                          </>
+                        )}
+                        {(isOwner || isRequester) && request.status === "ACCEPTED" && (
+                          <button
+                            type="button"
+                            onClick={() => updateRequestStatus(request.id, "complete")}
+                            className="rounded-lg bg-blue-600 px-3 py-1 text-xs"
+                          >
+                            Завершить
+                          </button>
+                        )}
+                      </div>
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
+          )}
+
+          <div className="mt-8 grid gap-6 lg:grid-cols-2">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur">
+              <h2 className="text-lg font-semibold">Заявки</h2>
+              <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                <input
+                  className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+                  value={requestFilters.status}
+                  onChange={(e) => setRequestFilters({ ...requestFilters, status: e.target.value })}
+                  placeholder="Status"
+                />
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                <input
+                  className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white col-span-2"
+                  value={requestForm.offerId}
+                  onChange={(e) => setRequestForm({ ...requestForm, offerId: e.target.value })}
+                  placeholder="Offer ID"
+                />
+                <input
+                  className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+                  value={requestForm.amount}
+                  onChange={(e) => setRequestForm({ ...requestForm, amount: e.target.value })}
+                  placeholder="Amount"
+                />
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={createRequest}
+                  className="rounded-lg bg-blue-600 px-3 py-2 text-xs"
+                >
+                  Создать заявку
+                </button>
+                <button
+                  type="button"
+                  onClick={loadRequests}
+                  className="rounded-lg bg-white/10 px-3 py-2 text-xs"
+                >
+                  Мои заявки
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const nextPage = Math.max(1, requestsPage - 1)
+                    setRequestsPage(nextPage)
+                    loadRequests(nextPage)
+                  }}
+                  className="rounded-lg bg-white/10 px-3 py-2 text-xs"
+                >
+                  Назад
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const nextPage = requestsPage + 1
+                    setRequestsPage(nextPage)
+                    loadRequests(nextPage)
+                  }}
+                  className="rounded-lg bg-white/10 px-3 py-2 text-xs"
+                >
+                  Вперед
+                </button>
+                <span className="text-xs text-white/50">
+                  Страница {requestsPage} • Всего: {requestsTotal}
+                </span>
+              </div>
+              <ul className="mt-4 space-y-2 text-sm">
+                {requests.map((request) => (
+                  <li key={request.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
+                    <div className="text-xs text-white/50">{request.id}</div>
+                    {request.amount} {request.offer.crypto} @ {request.offer.rate} {request.offer.currency} •{" "}
+                    {request.status}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur">
+              <h2 className="text-lg font-semibold">Транзакции</h2>
+              <button
+                type="button"
+                onClick={loadTransactions}
+                className="mt-3 rounded-lg bg-white/10 px-3 py-2 text-xs"
+              >
+                Обновить список
+              </button>
+              <ul className="mt-4 space-y-2 text-sm">
+                {transactions.map((tx) => (
+                  <li key={tx.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
+                    <div className="text-xs text-white/50">{tx.id}</div>
+                    {tx.amount} {tx.currency} @ {tx.rate} • {tx.status}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+
+          <div className="mt-8 grid gap-6 lg:grid-cols-2">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur">
+              <h2 className="text-lg font-semibold">Кошельки/реквизиты</h2>
+              <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                <input
+                  className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+                  value={walletForm.type}
+                  onChange={(e) => setWalletForm({ ...walletForm, type: e.target.value })}
+                  placeholder="Тип (card, bank, crypto)"
+                />
+                <input
+                  className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+                  value={walletForm.label}
+                  onChange={(e) => setWalletForm({ ...walletForm, label: e.target.value })}
+                  placeholder="Метка"
+                />
+                <input
+                  className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white col-span-2"
+                  value={walletForm.value}
+                  onChange={(e) => setWalletForm({ ...walletForm, value: e.target.value })}
+                  placeholder="Реквизиты"
+                />
+                <label className="flex items-center gap-2 text-xs text-white/70">
+                  <input
+                    type="checkbox"
+                    checked={walletForm.isDefault}
+                    onChange={(e) => setWalletForm({ ...walletForm, isDefault: e.target.checked })}
+                  />
+                  По умолчанию
+                </label>
+              </div>
+              <div className="mt-3 flex gap-2">
+                <button
+                  type="button"
+                  onClick={createWallet}
+                  className="rounded-lg bg-blue-600 px-3 py-2 text-xs"
+                >
+                  Добавить
+                </button>
+                <button
+                  type="button"
+                  onClick={loadWallets}
+                  className="rounded-lg bg-white/10 px-3 py-2 text-xs"
+                >
+                  Мои реквизиты
+                </button>
+              </div>
+              <ul className="mt-4 space-y-2 text-sm">
+                {wallets.map((wallet) => (
+                  <li key={wallet.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
+                    {wallet.type} • {wallet.label || "без метки"} • {wallet.value}{" "}
+                    {wallet.isDefault ? "(default)" : ""}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur">
+              <h2 className="text-lg font-semibold">Уведомления</h2>
+              <div className="mt-3 flex gap-2">
+                <button
+                  type="button"
+                  onClick={loadNotifications}
+                  className="rounded-lg bg-white/10 px-3 py-2 text-xs"
+                >
+                  Обновить
+                </button>
+                <button
+                  type="button"
+                  onClick={markNotificationsRead}
+                  className="rounded-lg bg-white/10 px-3 py-2 text-xs"
+                >
+                  Пометить прочитанными
+                </button>
+              </div>
+              <ul className="mt-4 space-y-2 text-sm">
+                {notifications.map((n) => (
+                  <li key={n.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
+                    <div className="font-medium">{n.title}</div>
+                    <div className="text-xs text-white/60">{n.type}</div>
+                    <div className="text-xs text-white/60">{n.body}</div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+
+          <div className="mt-8 grid gap-6 lg:grid-cols-2">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur">
+              <h2 className="text-lg font-semibold">Оценка сделки</h2>
+              <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                <input
+                  className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white col-span-2"
+                  value={ratingForm.transactionId}
+                  onChange={(e) => setRatingForm({ ...ratingForm, transactionId: e.target.value })}
+                  placeholder="Transaction ID"
+                />
+                <input
+                  className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+                  value={ratingForm.score}
+                  onChange={(e) => setRatingForm({ ...ratingForm, score: e.target.value })}
+                  placeholder="Score 1-5"
+                />
+                <input
+                  className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white col-span-2"
+                  value={ratingForm.comment}
+                  onChange={(e) => setRatingForm({ ...ratingForm, comment: e.target.value })}
+                  placeholder="Комментарий"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={createRating}
+                className="mt-3 rounded-lg bg-blue-600 px-3 py-2 text-xs"
+              >
+                Оценить
+              </button>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur">
+              <h2 className="text-lg font-semibold">Админка</h2>
+              <button
+                type="button"
+                onClick={loadAdminStats}
+                className="mt-3 rounded-lg bg-white/10 px-3 py-2 text-xs"
+              >
+                Статистика
+              </button>
+              {adminStats && (
+                <div className="mt-3 text-sm">
+                  Пользователи: {adminStats.users} • Офферы: {adminStats.offers} • Заявки: {adminStats.requests} •
+                  Транзакции: {adminStats.transactions}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {showDebug && (
+            <div className="mt-8 rounded-2xl border border-white/10 bg-white/5 p-5 text-xs text-white/70">
+              <div>Auth:</div>
+              <pre className="mt-2 whitespace-pre-wrap text-[11px]">{JSON.stringify(authResult, null, 2)}</pre>
+              <div className="mt-4">Debug:</div>
+              <pre className="mt-2 whitespace-pre-wrap text-[11px]">{JSON.stringify(debugInfo, null, 2)}</pre>
+            </div>
+          )}
+        </section>
       </div>
-
-      {authResult && (
-        <pre className="mt-4 rounded-md bg-gray-100 p-3 text-xs text-gray-800">
-          {JSON.stringify(authResult, null, 2)}
-        </pre>
-      )}
-
-      {debugInfo && (
-        <pre className="mt-4 rounded-md bg-gray-100 p-3 text-xs text-gray-800">
-          {JSON.stringify(debugInfo, null, 2)}
-        </pre>
-      )}
     </main>
   )
 }
