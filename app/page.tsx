@@ -19,13 +19,20 @@ type Offer = {
   rate: number
   paymentInfo?: string | null
   _count?: { requests: number }
+  userId?: string
 }
 
 type RequestItem = {
   id: string
+  userId: string
   amount: number
   status: string
   offer: Offer
+}
+
+type MeResult = {
+  ok?: boolean
+  user?: { id: string; telegramId: string; username?: string | null }
 }
 
 function getInitDataFromHash(): string | null {
@@ -51,11 +58,14 @@ export default function Home() {
     currency: "RUB",
     rate: "95",
   })
+  const [me, setMe] = useState<MeResult | null>(null)
   const [requestForm, setRequestForm] = useState({
     offerId: "",
     amount: "50",
   })
   const [requests, setRequests] = useState<RequestItem[]>([])
+  const [offerRequests, setOfferRequests] = useState<RequestItem[]>([])
+  const [activeOfferId, setActiveOfferId] = useState<string | null>(null)
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -108,10 +118,25 @@ export default function Home() {
     })
     const data = (await res.json()) as AuthResult
     setAuthResult(data)
+    await loadMe()
+  }
+
+  const loadMe = async () => {
+    const res = await fetch("/api/me")
+    const data = (await res.json()) as MeResult
+    setMe(data)
   }
 
   const loadOffers = async () => {
     const res = await fetch("/api/offers")
+    const data = await res.json()
+    if (data?.offers) {
+      setOffers(data.offers)
+    }
+  }
+
+  const loadMyOffers = async () => {
+    const res = await fetch("/api/offers?mine=1")
     const data = await res.json()
     if (data?.offers) {
       setOffers(data.offers)
@@ -123,6 +148,15 @@ export default function Home() {
     const data = await res.json()
     if (data?.requests) {
       setRequests(data.requests)
+    }
+  }
+
+  const loadOfferRequests = async (offerId: string) => {
+    setActiveOfferId(offerId)
+    const res = await fetch(`/api/requests?offerId=${offerId}`)
+    const data = await res.json()
+    if (data?.requests) {
+      setOfferRequests(data.requests)
     }
   }
 
@@ -139,6 +173,17 @@ export default function Home() {
     if (data?.request) {
       await loadRequests()
       await loadOffers()
+    }
+  }
+
+  const updateRequestStatus = async (id: string, action: "accept" | "reject" | "complete") => {
+    const res = await fetch(`/api/requests/${id}/${action}`, { method: "POST" })
+    const data = await res.json()
+    if (data?.request) {
+      await loadRequests()
+      if (activeOfferId) {
+        await loadOfferRequests(activeOfferId)
+      }
     }
   }
 
@@ -170,6 +215,10 @@ export default function Home() {
       >
         Проверить авторизацию
       </button>
+
+      <div className="mt-3 text-sm text-gray-600">
+        {me?.user ? `Пользователь: ${me.user.username || me.user.telegramId}` : "Сессия не найдена"}
+      </div>
 
       <div className="mt-8 rounded-md border p-4">
         <h2 className="text-lg font-semibold">Офферы</h2>
@@ -226,6 +275,13 @@ export default function Home() {
           >
             Обновить список
           </button>
+          <button
+            type="button"
+            onClick={loadMyOffers}
+            className="inline-flex items-center rounded-md bg-gray-200 px-3 py-1.5 text-gray-900"
+          >
+            Мои офферы
+          </button>
         </div>
         <ul className="mt-4 space-y-2 text-sm">
           {offers.map((offer) => (
@@ -235,10 +291,66 @@ export default function Home() {
               <div className="text-xs text-gray-500">
                 Осталось: {offer.remaining} • Заявок: {offer._count?.requests || 0}
               </div>
+              <button
+                type="button"
+                onClick={() => loadOfferRequests(offer.id)}
+                className="mt-2 inline-flex items-center rounded-md bg-gray-200 px-2 py-1 text-xs text-gray-900"
+              >
+                Показать заявки
+              </button>
             </li>
           ))}
         </ul>
       </div>
+
+      {activeOfferId && (
+        <div className="mt-6 rounded-md border p-4">
+          <h3 className="text-md font-semibold">Заявки по офферу</h3>
+          <div className="text-xs text-gray-500">{activeOfferId}</div>
+          <ul className="mt-3 space-y-2 text-sm">
+            {offerRequests.map((request) => {
+              const isOwner = request.offer.userId === me?.user?.id
+              const isRequester = request.userId === me?.user?.id
+              return (
+                <li key={request.id} className="rounded border p-2">
+                  <div className="font-mono text-xs text-gray-500">{request.id}</div>
+                  {request.amount} {request.offer.crypto} @ {request.offer.rate} {request.offer.currency} •{" "}
+                  {request.status}
+                  <div className="mt-2 flex gap-2">
+                    {isOwner && request.status === "PENDING" && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => updateRequestStatus(request.id, "accept")}
+                          className="rounded bg-green-600 px-2 py-1 text-xs text-white"
+                        >
+                          Принять
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => updateRequestStatus(request.id, "reject")}
+                          className="rounded bg-red-600 px-2 py-1 text-xs text-white"
+                        >
+                          Отклонить
+                        </button>
+                      </>
+                    )}
+                    {(isOwner || isRequester) && request.status === "ACCEPTED" && (
+                      <button
+                        type="button"
+                        onClick={() => updateRequestStatus(request.id, "complete")}
+                        className="rounded bg-blue-600 px-2 py-1 text-xs text-white"
+                      >
+                        Завершить
+                      </button>
+                    )}
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      )}
 
       <div className="mt-8 rounded-md border p-4">
         <h2 className="text-lg font-semibold">Заявки</h2>
