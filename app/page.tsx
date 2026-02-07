@@ -11,6 +11,7 @@ type AuthResult = {
 type Offer = {
   id: string
   type: "BUY" | "SELL"
+  status?: "ACTIVE" | "CLOSED"
   crypto: string
   network: string
   amount: number
@@ -18,6 +19,8 @@ type Offer = {
   currency: string
   rate: number
   paymentInfo?: string | null
+  minAmount?: number | null
+  maxAmount?: number | null
   _count?: { requests: number }
   userId?: string
 }
@@ -28,6 +31,16 @@ type RequestItem = {
   amount: number
   status: string
   offer: Offer
+}
+
+type TransactionItem = {
+  id: string
+  amount: number
+  currency: string
+  rate: number
+  status: string
+  createdAt: string
+  completedAt?: string | null
 }
 
 type MeResult = {
@@ -66,6 +79,14 @@ export default function Home() {
   const [requests, setRequests] = useState<RequestItem[]>([])
   const [offerRequests, setOfferRequests] = useState<RequestItem[]>([])
   const [activeOfferId, setActiveOfferId] = useState<string | null>(null)
+  const [transactions, setTransactions] = useState<TransactionItem[]>([])
+  const [editOfferId, setEditOfferId] = useState<string | null>(null)
+  const [editOfferForm, setEditOfferForm] = useState({
+    rate: "",
+    minAmount: "",
+    maxAmount: "",
+    paymentInfo: "",
+  })
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -151,6 +172,14 @@ export default function Home() {
     }
   }
 
+  const loadTransactions = async () => {
+    const res = await fetch("/api/transactions")
+    const data = await res.json()
+    if (data?.transactions) {
+      setTransactions(data.transactions)
+    }
+  }
+
   const loadOfferRequests = async (offerId: string) => {
     setActiveOfferId(offerId)
     const res = await fetch(`/api/requests?offerId=${offerId}`)
@@ -184,6 +213,42 @@ export default function Home() {
       if (activeOfferId) {
         await loadOfferRequests(activeOfferId)
       }
+    }
+  }
+
+  const startEditOffer = (offer: Offer) => {
+    setEditOfferId(offer.id)
+    setEditOfferForm({
+      rate: String(offer.rate ?? ""),
+      minAmount: offer.minAmount !== null && offer.minAmount !== undefined ? String(offer.minAmount) : "",
+      maxAmount: offer.maxAmount !== null && offer.maxAmount !== undefined ? String(offer.maxAmount) : "",
+      paymentInfo: offer.paymentInfo || "",
+    })
+  }
+
+  const saveOffer = async (offerId: string) => {
+    const res = await fetch(`/api/offers/${offerId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        rate: editOfferForm.rate ? Number(editOfferForm.rate) : undefined,
+        minAmount: editOfferForm.minAmount ? Number(editOfferForm.minAmount) : undefined,
+        maxAmount: editOfferForm.maxAmount ? Number(editOfferForm.maxAmount) : undefined,
+        paymentInfo: editOfferForm.paymentInfo || undefined,
+      }),
+    })
+    const data = await res.json()
+    if (data?.offer) {
+      setEditOfferId(null)
+      await loadOffers()
+    }
+  }
+
+  const closeOffer = async (offerId: string) => {
+    const res = await fetch(`/api/offers/${offerId}`, { method: "DELETE" })
+    const data = await res.json()
+    if (data?.offer) {
+      await loadOffers()
     }
   }
 
@@ -289,7 +354,7 @@ export default function Home() {
               <div className="font-mono text-xs text-gray-500">{offer.id}</div>
               {offer.type} {offer.amount} {offer.crypto} @ {offer.rate} {offer.currency} ({offer.network})
               <div className="text-xs text-gray-500">
-                Осталось: {offer.remaining} • Заявок: {offer._count?.requests || 0}
+                Статус: {offer.status || "ACTIVE"} • Осталось: {offer.remaining} • Заявок: {offer._count?.requests || 0}
               </div>
               <button
                 type="button"
@@ -298,6 +363,59 @@ export default function Home() {
               >
                 Показать заявки
               </button>
+              {offer.userId === me?.user?.id && (
+                <div className="mt-2 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => startEditOffer(offer)}
+                    className="rounded bg-gray-200 px-2 py-1 text-xs text-gray-900"
+                  >
+                    Редактировать
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => closeOffer(offer.id)}
+                    className="rounded bg-red-600 px-2 py-1 text-xs text-white"
+                  >
+                    Закрыть
+                  </button>
+                </div>
+              )}
+              {editOfferId === offer.id && (
+                <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                  <input
+                    className="rounded border px-2 py-1"
+                    value={editOfferForm.rate}
+                    onChange={(e) => setEditOfferForm({ ...editOfferForm, rate: e.target.value })}
+                    placeholder="Rate"
+                  />
+                  <input
+                    className="rounded border px-2 py-1"
+                    value={editOfferForm.minAmount}
+                    onChange={(e) => setEditOfferForm({ ...editOfferForm, minAmount: e.target.value })}
+                    placeholder="Min"
+                  />
+                  <input
+                    className="rounded border px-2 py-1"
+                    value={editOfferForm.maxAmount}
+                    onChange={(e) => setEditOfferForm({ ...editOfferForm, maxAmount: e.target.value })}
+                    placeholder="Max"
+                  />
+                  <input
+                    className="rounded border px-2 py-1"
+                    value={editOfferForm.paymentInfo}
+                    onChange={(e) => setEditOfferForm({ ...editOfferForm, paymentInfo: e.target.value })}
+                    placeholder="Payment info"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => saveOffer(offer.id)}
+                    className="col-span-2 rounded bg-blue-600 px-2 py-1 text-xs text-white"
+                  >
+                    Сохранить
+                  </button>
+                </div>
+              )}
             </li>
           ))}
         </ul>
@@ -390,6 +508,25 @@ export default function Home() {
               <div className="font-mono text-xs text-gray-500">{request.id}</div>
               {request.amount} {request.offer.crypto} @ {request.offer.rate} {request.offer.currency} •{" "}
               {request.status}
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="mt-8 rounded-md border p-4">
+        <h2 className="text-lg font-semibold">Транзакции</h2>
+        <button
+          type="button"
+          onClick={loadTransactions}
+          className="mt-3 inline-flex items-center rounded-md bg-gray-200 px-3 py-1.5 text-gray-900"
+        >
+          Обновить список
+        </button>
+        <ul className="mt-4 space-y-2 text-sm">
+          {transactions.map((tx) => (
+            <li key={tx.id} className="rounded border p-2">
+              <div className="font-mono text-xs text-gray-500">{tx.id}</div>
+              {tx.amount} {tx.currency} @ {tx.rate} • {tx.status}
             </li>
           ))}
         </ul>
