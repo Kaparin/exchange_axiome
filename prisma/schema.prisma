@@ -45,6 +45,7 @@ model User {
   requests     Request[]
   transactions Transaction[]
   ratings      Rating[] @relation("UserRatings")
+  sessions     Session[]
 }
 
 model Offer {
@@ -106,4 +107,16 @@ model Rating {
   score     Int
   comment   String?
   createdAt DateTime @default(now())
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
 }

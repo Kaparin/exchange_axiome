@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "../../../../lib/db/prisma"
 import { verifyInitData } from "../../../../lib/telegram/verify-init-data"
+import { createSession, setSessionCookie } from "../../../../lib/auth/session"
 
 export async function POST(req: Request) {
   try {
@@ -42,6 +43,9 @@ export async function POST(req: Request) {
         photoUrl: telegramUser.photo_url,
       },
     })
+
+    const token = await createSession(user.id)
+    setSessionCookie(token)
 
     return NextResponse.json({
       ok: true,
