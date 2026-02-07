@@ -6,7 +6,11 @@ function getWebAppUrl(): string {
   return "https://example.com"
 }
 
-export function createBot(): Telegraf {
+let botInstance: Telegraf | null = null
+
+export function getBot(): Telegraf {
+  if (botInstance) return botInstance
+
   if (!process.env.BOT_TOKEN) {
     throw new Error("BOT_TOKEN is missing")
   }
@@ -26,8 +30,6 @@ export function createBot(): Telegraf {
     console.error(`Bot error in ${ctx.updateType}:`, err)
   })
 
-  return bot
+  botInstance = bot
+  return botInstance
 }
-
-const bot = createBot()
-export default bot

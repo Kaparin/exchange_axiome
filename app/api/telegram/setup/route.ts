@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import bot from "../../../../lib/telegram/bot"
+import { getBot } from "../../../../lib/telegram/bot"
 import { isValidApiKey } from "../../../../lib/admin"
 
 export async function GET(req: NextRequest) {
@@ -19,6 +19,7 @@ export async function GET(req: NextRequest) {
     }
 
     const webhookUrl = `${process.env.WEBHOOK_URL}/api/telegram/webhook`
+    const bot = getBot()
     await bot.telegram.setWebhook(webhookUrl)
 
     await bot.telegram.setMyCommands(
