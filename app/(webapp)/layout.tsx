@@ -56,18 +56,41 @@ function getInitData() {
   return getInitDataFromHash()
 }
 
+function waitForInitData(maxWaitMs = 1500): Promise<string | null> {
+  return new Promise((resolve) => {
+    const data = getInitData()
+    if (data) return resolve(data)
+
+    const start = Date.now()
+    const interval = setInterval(() => {
+      const d = getInitData()
+      if (d || Date.now() - start > maxWaitMs) {
+        clearInterval(interval)
+        resolve(d)
+      }
+    }, 100)
+  })
+}
+
 export default function WebAppLayout({ children }: { children: ReactNode }) {
   const [authState, setAuthState] = useState<AuthState>({ status: "loading" })
   const [me, setMe] = useState<MeResult | null>(null)
 
   const authorize = async () => {
-    const initData = getInitData()
+    const initData = await waitForInitData()
     if (!initData) {
       setAuthState({
         status: "error",
         message: "Откройте приложение через Telegram Mini App.",
       })
       return
+    }
+
+    // Сообщаем Telegram что приложение готово
+    const tg = (window as any).Telegram?.WebApp
+    if (tg) {
+      tg.ready()
+      tg.expand()
     }
 
     try {

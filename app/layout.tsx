@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Script from 'next/script'
 import { GeistSans } from 'geist/font/sans'
 import { GeistMono } from 'geist/font/mono'
 import { Analytics } from '@vercel/analytics/next'
@@ -35,6 +36,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <Script src="https://telegram.org/js/telegram-web-app.js" strategy="beforeInteractive" />
         <style>{`
 html {
   font-family: ${GeistSans.style.fontFamily};
