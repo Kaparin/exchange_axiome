@@ -69,10 +69,18 @@ export default function MarketPage() {
     setError("")
     const url = `/api/offers?${params.toString()}`
     try {
+      // Основной запрос с фильтрами
       const data = await apiGet<{ offers: Offer[]; total: number }>(url)
       setOffers(data.offers || [])
       setOffersTotal(data.total || 0)
-      setDebugInfo(`GET ${url} → ${data.offers?.length ?? "null"} offers, total=${data.total}`)
+      // Дебаг — запрос БЕЗ фильтра status чтобы понять есть ли офферы вообще
+      const allData = await apiGet<{ offers: Offer[]; total: number }>("/api/offers?page=1&pageSize=5")
+      const mineData = await apiGet<{ offers: Offer[]; total: number }>("/api/offers?mine=1&page=1&pageSize=5")
+      const sample = allData.offers?.[0]
+      setDebugInfo(
+        `filtered=${data.offers?.length}(total=${data.total}) | no_filter=${allData.offers?.length}(total=${allData.total}) | mine=${mineData.offers?.length}(total=${mineData.total})` +
+        (sample ? ` | sample: status="${sample.status}" type="${sample.type}" id=${sample.id.slice(0,8)}` : " | no sample")
+      )
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Ошибка загрузки офферов"
       setError(msg)
