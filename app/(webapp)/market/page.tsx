@@ -243,108 +243,114 @@ export default function MarketPage() {
       </div>
 
       <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-        <h2 className="text-lg font-semibold">Офферы</h2>
-        {loadingOffers && <div className="mt-3 text-xs text-white/60">Загрузка...</div>}
-        <ul className="mt-4 space-y-3 text-sm">
-          {offers.map((offer) => (
-            <li key={offer.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-xs text-white/50">{offer.id}</div>
-                  <div className="font-semibold">
-                    {offer.type} {offer.amount} {offer.crypto} @ {offer.rate} {offer.currency}
-                  </div>
-                  <div className="text-xs text-white/50">
-                    {offer.network} • Статус: {offer.status || "ACTIVE"} • Осталось: {offer.remaining} • Заявок:{" "}
-                    {offer._count?.requests || 0}
-                  </div>
-                  {offer.paymentInfo && (
-                    <div className="text-xs text-white/50">Оплата: {offer.paymentInfo}</div>
-                  )}
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Офферы</h2>
+          {loadingOffers && <div className="text-xs text-white/60">Загрузка...</div>}
+        </div>
+        <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {offers.length === 0 ? (
+            <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-white/60">
+              Нет офферов. Попробуйте изменить фильтры или создать новый.
+            </div>
+          ) : (
+            offers.map((offer) => (
+              <div key={offer.id} className="rounded-xl border border-white/10 bg-white/5 p-4">
+                <div className="flex items-center justify-between text-xs text-white/60">
+                  <span>{offer.type}</span>
+                  <span>{offer.status || "ACTIVE"}</span>
                 </div>
-                <div className="flex flex-col gap-2">
-                  <button
-                    type="button"
-                    onClick={() => loadOfferRequests(offer.id)}
-                    className="rounded-lg bg-white/10 px-3 py-1 text-xs"
-                  >
-                    Заявки
-                  </button>
-                  {isOwner(offer) && (
+                <div className="mt-2 text-lg font-semibold">
+                  {offer.amount} {offer.crypto}
+                </div>
+                <div className="text-sm text-white/70">
+                  {offer.rate} {offer.currency} • {offer.network}
+                </div>
+                <div className="mt-2 text-xs text-white/50">
+                  Осталось: {offer.remaining} • Заявок: {offer._count?.requests || 0}
+                </div>
+                {offer.paymentInfo && <div className="mt-2 text-xs text-white/50">Оплата: {offer.paymentInfo}</div>}
+
+                {!isOwner(offer) ? (
+                  <div className="mt-3 flex items-center gap-2">
+                    <input
+                      className="flex-1 rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-xs text-white"
+                      value={requestAmountByOffer[offer.id] || ""}
+                      onChange={(e) => setRequestAmountByOffer((prev) => ({ ...prev, [offer.id]: e.target.value }))}
+                      placeholder="Сумма"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => createRequest(offer.id)}
+                      className="rounded-lg bg-blue-600 px-3 py-2 text-xs"
+                    >
+                      Откликнуться
+                    </button>
+                  </div>
+                ) : (
+                  <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => loadOfferRequests(offer.id)}
+                      className="rounded-lg bg-white/10 px-3 py-2"
+                    >
+                      Заявки
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => startEditOffer(offer)}
+                      className="rounded-lg bg-white/10 px-3 py-2"
+                    >
+                      Редактировать
+                    </button>
                     <button
                       type="button"
                       onClick={() => closeOffer(offer.id)}
-                      className="rounded-lg bg-red-500/80 px-3 py-1 text-xs"
+                      className="rounded-lg bg-red-500/80 px-3 py-2"
                     >
                       Закрыть
                     </button>
-                  )}
-                </div>
+                  </div>
+                )}
+
+                {isOwner(offer) && editOfferId === offer.id && (
+                  <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                    <input
+                      className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+                      value={editOfferForm.rate}
+                      onChange={(e) => setEditOfferForm({ ...editOfferForm, rate: e.target.value })}
+                      placeholder="Rate"
+                    />
+                    <input
+                      className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+                      value={editOfferForm.minAmount}
+                      onChange={(e) => setEditOfferForm({ ...editOfferForm, minAmount: e.target.value })}
+                      placeholder="Min"
+                    />
+                    <input
+                      className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+                      value={editOfferForm.maxAmount}
+                      onChange={(e) => setEditOfferForm({ ...editOfferForm, maxAmount: e.target.value })}
+                      placeholder="Max"
+                    />
+                    <input
+                      className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+                      value={editOfferForm.paymentInfo}
+                      onChange={(e) => setEditOfferForm({ ...editOfferForm, paymentInfo: e.target.value })}
+                      placeholder="Payment info"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => saveOffer(offer.id)}
+                      className="col-span-2 rounded-lg bg-blue-600 px-3 py-2 text-xs"
+                    >
+                      Сохранить
+                    </button>
+                  </div>
+                )}
               </div>
-              {!isOwner(offer) && (
-                <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-                  <input
-                    className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
-                    value={requestAmountByOffer[offer.id] || ""}
-                    onChange={(e) => setRequestAmountByOffer((prev) => ({ ...prev, [offer.id]: e.target.value }))}
-                    placeholder="Сумма"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => createRequest(offer.id)}
-                    className="rounded-lg bg-blue-600 px-3 py-2 text-xs"
-                  >
-                    Откликнуться
-                  </button>
-                </div>
-              )}
-              {isOwner(offer) && editOfferId !== offer.id && (
-                <button
-                  type="button"
-                  onClick={() => startEditOffer(offer)}
-                  className="mt-3 rounded-lg bg-white/10 px-3 py-1 text-xs"
-                >
-                  Редактировать
-                </button>
-              )}
-              {isOwner(offer) && editOfferId === offer.id && (
-                <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-                  <input
-                    className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
-                    value={editOfferForm.rate}
-                    onChange={(e) => setEditOfferForm({ ...editOfferForm, rate: e.target.value })}
-                    placeholder="Rate"
-                  />
-                  <input
-                    className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
-                    value={editOfferForm.minAmount}
-                    onChange={(e) => setEditOfferForm({ ...editOfferForm, minAmount: e.target.value })}
-                    placeholder="Min"
-                  />
-                  <input
-                    className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
-                    value={editOfferForm.maxAmount}
-                    onChange={(e) => setEditOfferForm({ ...editOfferForm, maxAmount: e.target.value })}
-                    placeholder="Max"
-                  />
-                  <input
-                    className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
-                    value={editOfferForm.paymentInfo}
-                    onChange={(e) => setEditOfferForm({ ...editOfferForm, paymentInfo: e.target.value })}
-                    placeholder="Payment info"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => saveOffer(offer.id)}
-                    className="col-span-2 rounded-lg bg-blue-600 px-3 py-2 text-xs"
-                  >
-                    Сохранить
-                  </button>
-                </div>
-              )}
-            </li>
-          ))}
-        </ul>
+            ))
+          )}
+        </div>
       </div>
 
       {activeOfferId && (
