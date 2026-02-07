@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { apiGet, apiPost, apiPatch, apiDelete } from "../../../lib/webapp/client"
 import type { Offer, RequestItem } from "../../../lib/webapp/types"
 import { useMe } from "../../../lib/webapp/use-me"
@@ -27,6 +27,7 @@ export default function MarketPage() {
     currency: "RUB",
     rate: "95",
   })
+  const [requestAmountByOffer, setRequestAmountByOffer] = useState<Record<string, string>>({})
   const [editOfferId, setEditOfferId] = useState<string | null>(null)
   const [editOfferForm, setEditOfferForm] = useState({
     rate: "",
@@ -36,6 +37,12 @@ export default function MarketPage() {
   })
   const [offerRequests, setOfferRequests] = useState<RequestItem[]>([])
   const [activeOfferId, setActiveOfferId] = useState<string | null>(null)
+  const [loadingOffers, setLoadingOffers] = useState(false)
+
+  const isOwner = useMemo(
+    () => (offer: Offer) => offer.userId && offer.userId === me?.user?.id,
+    [me?.user?.id],
+  )
 
   const loadOffers = async (pageOverride?: number) => {
     const targetPage = pageOverride ?? offersPage
@@ -46,11 +53,13 @@ export default function MarketPage() {
     params.set("page", String(targetPage))
     params.set("pageSize", "20")
 
+    setLoadingOffers(true)
     const data = await apiGet<{ offers: Offer[]; total: number }>(`/api/offers?${params.toString()}`)
     if (data?.offers) {
       setOffers(data.offers)
       setOffersTotal(data.total || 0)
     }
+    setLoadingOffers(false)
   }
 
   const createOffer = async () => {
@@ -60,6 +69,19 @@ export default function MarketPage() {
       rate: Number(offerForm.rate),
     })
     if (data?.offer) {
+      await loadOffers()
+    }
+  }
+
+  const createRequest = async (offerId: string) => {
+    const amount = Number(requestAmountByOffer[offerId] || 0)
+    if (!amount || amount <= 0) return
+    const data = await apiPost<{ request?: RequestItem }>("/api/requests", {
+      offerId,
+      amount,
+    })
+    if (data?.request) {
+      setRequestAmountByOffer((prev) => ({ ...prev, [offerId]: "" }))
       await loadOffers()
     }
   }
@@ -107,6 +129,23 @@ export default function MarketPage() {
     }
   }
 
+  const resetFilters = () => {
+    setOfferFilters({
+      type: "",
+      status: "ACTIVE",
+      crypto: "",
+      network: "",
+      currency: "",
+      minRate: "",
+      maxRate: "",
+    })
+    setOffersPage(1)
+  }
+
+  useEffect(() => {
+    loadOffers().catch(() => {})
+  }, [])
+
   return (
     <div className="space-y-6">
       <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
@@ -145,6 +184,13 @@ export default function MarketPage() {
             >
               Обновить список
             </button>
+          <button
+            type="button"
+            onClick={resetFilters}
+            className="inline-flex items-center rounded-lg bg-white/10 px-3 py-2 text-xs"
+          >
+            Сбросить фильтры
+          </button>
             <button
               type="button"
               onClick={() => {
@@ -198,6 +244,7 @@ export default function MarketPage() {
 
       <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
         <h2 className="text-lg font-semibold">Офферы</h2>
+        {loadingOffers && <div className="mt-3 text-xs text-white/60">Загрузка...</div>}
         <ul className="mt-4 space-y-3 text-sm">
           {offers.map((offer) => (
             <li key={offer.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
@@ -220,7 +267,7 @@ export default function MarketPage() {
                   >
                     Заявки
                   </button>
-                  {offer.userId === me?.user?.id && (
+                  {isOwner(offer) && (
                     <button
                       type="button"
                       onClick={() => closeOffer(offer.id)}
@@ -231,7 +278,24 @@ export default function MarketPage() {
                   )}
                 </div>
               </div>
-              {offer.userId === me?.user?.id && editOfferId !== offer.id && (
+              {!isOwner(offer) && (
+                <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+                  <input
+                    className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+                    value={requestAmountByOffer[offer.id] || ""}
+                    onChange={(e) => setRequestAmountByOffer((prev) => ({ ...prev, [offer.id]: e.target.value }))}
+                    placeholder="Сумма"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => createRequest(offer.id)}
+                    className="rounded-lg bg-blue-600 px-3 py-2 text-xs"
+                  >
+                    Откликнуться
+                  </button>
+                </div>
+              )}
+              {isOwner(offer) && editOfferId !== offer.id && (
                 <button
                   type="button"
                   onClick={() => startEditOffer(offer)}
@@ -240,7 +304,7 @@ export default function MarketPage() {
                   Редактировать
                 </button>
               )}
-              {offer.userId === me?.user?.id && editOfferId === offer.id && (
+              {isOwner(offer) && editOfferId === offer.id && (
                 <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
                   <input
                     className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"

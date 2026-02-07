@@ -1,10 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { apiGet, apiPost } from "../../../lib/webapp/client"
-import type { RequestItem, TransactionItem } from "../../../lib/webapp/types"
+import type { Offer, RequestItem, TransactionItem } from "../../../lib/webapp/types"
+import { useMe } from "../../../lib/webapp/use-me"
 
 export default function DealsPage() {
+  const { me } = useMe()
   const [requests, setRequests] = useState<RequestItem[]>([])
   const [requestsPage, setRequestsPage] = useState(1)
   const [requestsTotal, setRequestsTotal] = useState(0)
@@ -16,6 +18,9 @@ export default function DealsPage() {
     amount: "50",
   })
   const [transactions, setTransactions] = useState<TransactionItem[]>([])
+  const [myOffers, setMyOffers] = useState<Offer[]>([])
+  const [offerRequests, setOfferRequests] = useState<RequestItem[]>([])
+  const [activeOfferId, setActiveOfferId] = useState<string | null>(null)
 
   const loadRequests = async (pageOverride?: number) => {
     const targetPage = pageOverride ?? requestsPage
@@ -48,6 +53,33 @@ export default function DealsPage() {
       setTransactions(data.transactions)
     }
   }
+
+  const loadMyOffers = async () => {
+    const data = await apiGet<{ offers: Offer[] }>("/api/offers?mine=1&page=1&pageSize=50")
+    if (data?.offers) {
+      setMyOffers(data.offers)
+    }
+  }
+
+  const loadOfferRequests = async (offerId: string) => {
+    setActiveOfferId(offerId)
+    const data = await apiGet<{ requests: RequestItem[] }>(`/api/requests?offerId=${offerId}`)
+    if (data?.requests) {
+      setOfferRequests(data.requests)
+    }
+  }
+
+  const updateRequestStatus = async (id: string, action: "accept" | "reject" | "complete") => {
+    const data = await apiPost<{ request?: RequestItem }>(`/api/requests/${id}/${action}`)
+    if (data?.request && activeOfferId) {
+      await loadOfferRequests(activeOfferId)
+    }
+  }
+
+  useEffect(() => {
+    loadRequests().catch(() => {})
+    loadMyOffers().catch(() => {})
+  }, [])
 
   return (
     <div className="space-y-6">
@@ -117,6 +149,76 @@ export default function DealsPage() {
           ))}
         </ul>
       </div>
+
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+        <h2 className="text-lg font-semibold">Мои офферы</h2>
+        <ul className="mt-4 space-y-2 text-sm">
+          {myOffers.map((offer) => (
+            <li key={offer.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
+              <div className="text-xs text-white/50">{offer.id}</div>
+              <div className="font-semibold">
+                {offer.type} {offer.amount} {offer.crypto} @ {offer.rate} {offer.currency}
+              </div>
+              <button
+                type="button"
+                onClick={() => loadOfferRequests(offer.id)}
+                className="mt-2 rounded-lg bg-white/10 px-3 py-1 text-xs"
+              >
+                Показать заявки
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {activeOfferId && (
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+          <h3 className="text-md font-semibold">Заявки по офферу</h3>
+          <div className="text-xs text-white/50">{activeOfferId}</div>
+          <ul className="mt-3 space-y-2 text-sm">
+            {offerRequests.map((request) => {
+              const isOwner = request.offer.userId === me?.user?.id
+              const isRequester = request.userId === me?.user?.id
+              return (
+                <li key={request.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
+                  <div className="text-xs text-white/50">{request.id}</div>
+                  {request.amount} {request.offer.crypto} @ {request.offer.rate} {request.offer.currency} •{" "}
+                  {request.status}
+                  <div className="mt-2 flex gap-2">
+                    {isOwner && request.status === "PENDING" && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => updateRequestStatus(request.id, "accept")}
+                          className="rounded-lg bg-green-600 px-3 py-1 text-xs"
+                        >
+                          Принять
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => updateRequestStatus(request.id, "reject")}
+                          className="rounded-lg bg-red-600 px-3 py-1 text-xs"
+                        >
+                          Отклонить
+                        </button>
+                      </>
+                    )}
+                    {(isOwner || isRequester) && request.status === "ACCEPTED" && (
+                      <button
+                        type="button"
+                        onClick={() => updateRequestStatus(request.id, "complete")}
+                        className="rounded-lg bg-blue-600 px-3 py-1 text-xs"
+                      >
+                        Завершить
+                      </button>
+                    )}
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      )}
 
       <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
         <h2 className="text-lg font-semibold">Транзакции</h2>
