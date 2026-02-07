@@ -11,16 +11,34 @@ type AuthResult = {
 export default function Home() {
   const [status, setStatus] = useState("Ожидание Telegram WebApp...")
   const [authResult, setAuthResult] = useState<AuthResult | null>(null)
+  const [debugInfo, setDebugInfo] = useState<Record<string, unknown> | null>(null)
 
   useEffect(() => {
     if (typeof window === "undefined") return
     const webApp = (window as any)?.Telegram?.WebApp
     if (!webApp) {
       setStatus("Telegram WebApp не обнаружен")
+      setDebugInfo({
+        hasTelegram: Boolean((window as any)?.Telegram),
+        hasWebApp: false,
+        userAgent: navigator.userAgent,
+        url: window.location.href,
+      })
       return
     }
     webApp.ready?.()
     setStatus("Telegram WebApp готов")
+    setDebugInfo({
+      hasTelegram: true,
+      hasWebApp: true,
+      version: webApp.version,
+      platform: webApp.platform,
+      initDataLength: webApp.initData?.length || 0,
+      initDataUnsafe: webApp.initDataUnsafe || null,
+      colorScheme: webApp.colorScheme,
+      userAgent: navigator.userAgent,
+      url: window.location.href,
+    })
   }, [])
 
   const handleAuth = async () => {
@@ -55,6 +73,12 @@ export default function Home() {
       {authResult && (
         <pre className="mt-4 rounded-md bg-gray-100 p-3 text-xs text-gray-800">
           {JSON.stringify(authResult, null, 2)}
+        </pre>
+      )}
+
+      {debugInfo && (
+        <pre className="mt-4 rounded-md bg-gray-100 p-3 text-xs text-gray-800">
+          {JSON.stringify(debugInfo, null, 2)}
         </pre>
       )}
     </main>
