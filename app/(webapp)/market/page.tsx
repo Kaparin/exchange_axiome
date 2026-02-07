@@ -68,10 +68,8 @@ export default function MarketPage() {
     setError("")
     try {
       const data = await apiGet<{ offers: Offer[]; total: number }>(`/api/offers?${params.toString()}`)
-      if (data?.offers) {
-        setOffers(data.offers)
-        setOffersTotal(data.total || 0)
-      }
+      setOffers(data.offers || [])
+      setOffersTotal(data.total || 0)
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Ошибка загрузки офферов")
     } finally {
@@ -103,16 +101,20 @@ export default function MarketPage() {
     setError("")
     try {
       const data = await apiPost<{ offer?: Offer }>("/api/offers", {
-        ...offerForm,
+        type: offerForm.type,
+        crypto: offerForm.crypto,
+        network: offerForm.network,
+        currency: offerForm.currency,
         amount,
         rate,
-        minAmount,
-        maxAmount,
+        minAmount: minAmount || undefined,
+        maxAmount: maxAmount || undefined,
         paymentInfo: offerForm.paymentInfo || undefined,
       })
       if (data?.offer) {
         setShowCreate(false)
-        await loadOffers()
+        setOfferForm({ type: "SELL", crypto: "USDT", network: "TRC20", amount: "100", currency: "RUB", rate: "95", minAmount: "", maxAmount: "", paymentInfo: "" })
+        await loadOffers(1)
       }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Ошибка создания оффера")
@@ -442,7 +444,7 @@ export default function MarketPage() {
         </button>
         {showOffers && (
           <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {offers.length === 0 ? (
+            {offers.length === 0 && !loadingOffers ? (
               <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-white/60">
                 Нет офферов. Попробуйте изменить фильтры или создать новый.
               </div>
@@ -641,6 +643,9 @@ export default function MarketPage() {
                 Закрыть
               </button>
             </div>
+            {error && (
+              <div className="mt-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">{error}</div>
+            )}
             <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
               <select
                 className={selectClass}
