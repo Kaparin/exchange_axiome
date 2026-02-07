@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "../../../../../lib/db/prisma"
 import { getSessionFromCookies } from "../../../../../lib/auth/session"
+import { createNotification } from "../../../../../lib/notifications"
 
 export async function POST(_: Request, { params }: { params: { id: string } }) {
   const session = await getSessionFromCookies()
@@ -43,6 +44,19 @@ export async function POST(_: Request, { params }: { params: { id: string } }) {
 
     return updatedRequest
   })
+
+  await createNotification(
+    request.userId,
+    "request_completed",
+    "Сделка завершена",
+    `Сделка по офферу ${request.offer.id} завершена`,
+  ).catch(() => {})
+  await createNotification(
+    request.offer.userId,
+    "request_completed",
+    "Сделка завершена",
+    `Сделка по офферу ${request.offer.id} завершена`,
+  ).catch(() => {})
 
   return NextResponse.json({ ok: true, request: result })
 }

@@ -49,9 +49,9 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   const data: Record<string, unknown> = {}
   if (status) data.status = status
   if (paymentInfo !== undefined) data.paymentInfo = paymentInfo || null
-  if (minAmount !== undefined) data.minAmount = Number(minAmount)
-  if (maxAmount !== undefined) data.maxAmount = Number(maxAmount)
-  if (rate !== undefined) data.rate = Number(rate)
+  if (minAmount !== undefined && Number.isFinite(Number(minAmount))) data.minAmount = Number(minAmount)
+  if (maxAmount !== undefined && Number.isFinite(Number(maxAmount))) data.maxAmount = Number(maxAmount)
+  if (rate !== undefined && Number.isFinite(Number(rate))) data.rate = Number(rate)
 
   const updated = await prisma.offer.update({
     where: { id: offer.id },

@@ -10,11 +10,33 @@ export async function GET(req: Request) {
 
   const { searchParams } = new URL(req.url)
   const mine = searchParams.get("mine") === "1"
+  const type = searchParams.get("type")
+  const status = searchParams.get("status")
+  const crypto = searchParams.get("crypto")
+  const network = searchParams.get("network")
+  const currency = searchParams.get("currency")
+  const minRate = Number(searchParams.get("minRate") || "")
+  const maxRate = Number(searchParams.get("maxRate") || "")
+  const page = Number(searchParams.get("page") || "1")
+  const pageSize = Number(searchParams.get("pageSize") || "20")
+
+  const where: Record<string, unknown> = mine
+    ? { userId: session.user.id }
+    : { status: status || "ACTIVE" }
+
+  if (type) where.type = type
+  if (status && !mine) where.status = status
+  if (crypto) where.crypto = crypto
+  if (network) where.network = network
+  if (currency) where.currency = currency
+  if (Number.isFinite(minRate)) where.rate = { ...(where.rate as object), gte: minRate }
+  if (Number.isFinite(maxRate)) where.rate = { ...(where.rate as object), lte: maxRate }
 
   const offers = await prisma.offer.findMany({
-    where: mine ? { userId: session.user.id } : { status: "ACTIVE" },
+    where,
     orderBy: { createdAt: "desc" },
-    take: 50,
+    skip: (page - 1) * pageSize,
+    take: pageSize,
     include: {
       user: {
         select: {
@@ -29,7 +51,9 @@ export async function GET(req: Request) {
     },
   })
 
-  return NextResponse.json({ ok: true, offers })
+  const total = await prisma.offer.count({ where })
+
+  return NextResponse.json({ ok: true, offers, page, pageSize, total })
 }
 
 export async function POST(req: Request) {

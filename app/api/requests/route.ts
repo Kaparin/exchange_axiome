@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "../../../lib/db/prisma"
 import { getSessionFromCookies } from "../../../lib/auth/session"
+import { createNotification } from "../../../lib/notifications"
 
 export async function GET(req: Request) {
   const session = await getSessionFromCookies()
@@ -11,17 +12,28 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
   const mine = searchParams.get("mine") === "1"
   const offerId = searchParams.get("offerId")
+  const status = searchParams.get("status")
+  const page = Number(searchParams.get("page") || "1")
+  const pageSize = Number(searchParams.get("pageSize") || "20")
+
+  const where: Record<string, unknown> = {}
+  if (mine) where.userId = session.user.id
+  if (offerId) where.offerId = offerId
+  if (status) where.status = status
 
   const requests = await prisma.request.findMany({
-    where: mine ? { userId: session.user.id } : offerId ? { offerId } : undefined,
+    where,
     orderBy: { createdAt: "desc" },
-    take: 50,
+    skip: (page - 1) * pageSize,
+    take: pageSize,
     include: {
       offer: true,
     },
   })
 
-  return NextResponse.json({ ok: true, requests })
+  const total = await prisma.request.count({ where })
+
+  return NextResponse.json({ ok: true, requests, page, pageSize, total })
 }
 
 export async function POST(req: Request) {
@@ -66,8 +78,15 @@ export async function POST(req: Request) {
       },
     })
 
-    return request
+    return { request, offer }
   })
 
-  return NextResponse.json({ ok: true, request: result })
+  await createNotification(
+    result.offer.userId,
+    "request_created",
+    "Новая заявка",
+    `Заявка на оффер ${result.offer.id} на сумму ${result.request.amount}`,
+  ).catch(() => {})
+
+  return NextResponse.json({ ok: true, request: result.request })
 }

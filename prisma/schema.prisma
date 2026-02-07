@@ -46,6 +46,8 @@ model User {
   transactions Transaction[]
   ratings      Rating[] @relation("UserRatings")
   sessions     Session[]
+  wallets      Wallet[]
+  notifications Notification[]
 }
 
 model Offer {
@@ -97,16 +99,23 @@ model Transaction {
   status      String
   createdAt   DateTime @default(now())
   completedAt DateTime?
+
+  ratings     Rating[]
 }
 
 model Rating {
   id        String   @id @default(cuid())
   userId    String
   user      User     @relation("UserRatings", fields: [userId], references: [id])
+  transactionId String
+  transaction Transaction @relation(fields: [transactionId], references: [id])
   fromUser  String
   score     Int
   comment   String?
   createdAt DateTime @default(now())
+
+  @@index([transactionId])
+  @@index([userId])
 }
 
 model Session {
@@ -119,4 +128,32 @@ model Session {
 
   @@index([userId])
   @@index([expiresAt])
+}
+
+model Wallet {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  type      String
+  label     String?
+  value     String
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  type      String
+  title     String
+  body      String?
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([readAt])
 }

@@ -43,6 +43,30 @@ type TransactionItem = {
   completedAt?: string | null
 }
 
+type WalletItem = {
+  id: string
+  type: string
+  label?: string | null
+  value: string
+  isDefault: boolean
+}
+
+type NotificationItem = {
+  id: string
+  type: string
+  title: string
+  body?: string | null
+  readAt?: string | null
+  createdAt: string
+}
+
+type AdminStats = {
+  users: number
+  offers: number
+  requests: number
+  transactions: number
+}
+
 type MeResult = {
   ok?: boolean
   user?: { id: string; telegramId: string; username?: string | null }
@@ -63,6 +87,17 @@ export default function Home() {
   const [debugInfo, setDebugInfo] = useState<Record<string, unknown> | null>(null)
   const [initData, setInitData] = useState<string | null>(null)
   const [offers, setOffers] = useState<Offer[]>([])
+  const [offersPage, setOffersPage] = useState(1)
+  const [offersTotal, setOffersTotal] = useState(0)
+  const [offerFilters, setOfferFilters] = useState({
+    type: "",
+    status: "ACTIVE",
+    crypto: "",
+    network: "",
+    currency: "",
+    minRate: "",
+    maxRate: "",
+  })
   const [offerForm, setOfferForm] = useState({
     type: "SELL",
     crypto: "USDT",
@@ -77,6 +112,11 @@ export default function Home() {
     amount: "50",
   })
   const [requests, setRequests] = useState<RequestItem[]>([])
+  const [requestsPage, setRequestsPage] = useState(1)
+  const [requestsTotal, setRequestsTotal] = useState(0)
+  const [requestFilters, setRequestFilters] = useState({
+    status: "",
+  })
   const [offerRequests, setOfferRequests] = useState<RequestItem[]>([])
   const [activeOfferId, setActiveOfferId] = useState<string | null>(null)
   const [transactions, setTransactions] = useState<TransactionItem[]>([])
@@ -87,6 +127,20 @@ export default function Home() {
     maxAmount: "",
     paymentInfo: "",
   })
+  const [wallets, setWallets] = useState<WalletItem[]>([])
+  const [walletForm, setWalletForm] = useState({
+    type: "card",
+    label: "",
+    value: "",
+    isDefault: false,
+  })
+  const [notifications, setNotifications] = useState<NotificationItem[]>([])
+  const [ratingForm, setRatingForm] = useState({
+    transactionId: "",
+    score: "5",
+    comment: "",
+  })
+  const [adminStats, setAdminStats] = useState<AdminStats | null>(null)
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -148,27 +202,50 @@ export default function Home() {
     setMe(data)
   }
 
-  const loadOffers = async () => {
-    const res = await fetch("/api/offers")
+  const loadOffers = async (pageOverride?: number) => {
+    const targetPage = pageOverride ?? offersPage
+    const params = new URLSearchParams()
+    if (offerFilters.type) params.set("type", offerFilters.type)
+    if (offerFilters.status) params.set("status", offerFilters.status)
+    if (offerFilters.crypto) params.set("crypto", offerFilters.crypto)
+    if (offerFilters.network) params.set("network", offerFilters.network)
+    if (offerFilters.currency) params.set("currency", offerFilters.currency)
+    if (offerFilters.minRate) params.set("minRate", offerFilters.minRate)
+    if (offerFilters.maxRate) params.set("maxRate", offerFilters.maxRate)
+    params.set("page", String(targetPage))
+    params.set("pageSize", "20")
+
+    const res = await fetch(`/api/offers?${params.toString()}`)
     const data = await res.json()
     if (data?.offers) {
       setOffers(data.offers)
+      setOffersTotal(data.total || 0)
     }
   }
 
-  const loadMyOffers = async () => {
-    const res = await fetch("/api/offers?mine=1")
+  const loadMyOffers = async (pageOverride?: number) => {
+    const targetPage = pageOverride ?? offersPage
+    const res = await fetch(`/api/offers?mine=1&page=${targetPage}&pageSize=20`)
     const data = await res.json()
     if (data?.offers) {
       setOffers(data.offers)
+      setOffersTotal(data.total || 0)
     }
   }
 
-  const loadRequests = async () => {
-    const res = await fetch("/api/requests?mine=1")
+  const loadRequests = async (pageOverride?: number) => {
+    const targetPage = pageOverride ?? requestsPage
+    const params = new URLSearchParams()
+    params.set("mine", "1")
+    if (requestFilters.status) params.set("status", requestFilters.status)
+    params.set("page", String(targetPage))
+    params.set("pageSize", "20")
+
+    const res = await fetch(`/api/requests?${params.toString()}`)
     const data = await res.json()
     if (data?.requests) {
       setRequests(data.requests)
+      setRequestsTotal(data.total || 0)
     }
   }
 
@@ -213,6 +290,69 @@ export default function Home() {
       if (activeOfferId) {
         await loadOfferRequests(activeOfferId)
       }
+    }
+  }
+
+  const loadWallets = async () => {
+    const res = await fetch("/api/wallets")
+    const data = await res.json()
+    if (data?.wallets) {
+      setWallets(data.wallets)
+    }
+  }
+
+  const createWallet = async () => {
+    const res = await fetch("/api/wallets", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: walletForm.type,
+        label: walletForm.label,
+        value: walletForm.value,
+        isDefault: walletForm.isDefault,
+      }),
+    })
+    const data = await res.json()
+    if (data?.wallet) {
+      setWalletForm({ type: "card", label: "", value: "", isDefault: false })
+      await loadWallets()
+    }
+  }
+
+  const loadNotifications = async () => {
+    const res = await fetch("/api/notifications")
+    const data = await res.json()
+    if (data?.notifications) {
+      setNotifications(data.notifications)
+    }
+  }
+
+  const markNotificationsRead = async () => {
+    await fetch("/api/notifications", { method: "PATCH" })
+    await loadNotifications()
+  }
+
+  const createRating = async () => {
+    const res = await fetch("/api/ratings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        transactionId: ratingForm.transactionId,
+        score: Number(ratingForm.score),
+        comment: ratingForm.comment,
+      }),
+    })
+    const data = await res.json()
+    if (data?.rating) {
+      setRatingForm({ transactionId: "", score: "5", comment: "" })
+    }
+  }
+
+  const loadAdminStats = async () => {
+    const res = await fetch("/api/admin/stats")
+    const data = await res.json()
+    if (data?.ok) {
+      setAdminStats(data)
     }
   }
 
@@ -290,6 +430,50 @@ export default function Home() {
         <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
           <input
             className="rounded border px-2 py-1"
+            value={offerFilters.type}
+            onChange={(e) => setOfferFilters({ ...offerFilters, type: e.target.value })}
+            placeholder="Type (BUY/SELL)"
+          />
+          <input
+            className="rounded border px-2 py-1"
+            value={offerFilters.status}
+            onChange={(e) => setOfferFilters({ ...offerFilters, status: e.target.value })}
+            placeholder="Status (ACTIVE/CLOSED)"
+          />
+          <input
+            className="rounded border px-2 py-1"
+            value={offerFilters.crypto}
+            onChange={(e) => setOfferFilters({ ...offerFilters, crypto: e.target.value })}
+            placeholder="Crypto"
+          />
+          <input
+            className="rounded border px-2 py-1"
+            value={offerFilters.network}
+            onChange={(e) => setOfferFilters({ ...offerFilters, network: e.target.value })}
+            placeholder="Network"
+          />
+          <input
+            className="rounded border px-2 py-1"
+            value={offerFilters.currency}
+            onChange={(e) => setOfferFilters({ ...offerFilters, currency: e.target.value })}
+            placeholder="Currency"
+          />
+          <input
+            className="rounded border px-2 py-1"
+            value={offerFilters.minRate}
+            onChange={(e) => setOfferFilters({ ...offerFilters, minRate: e.target.value })}
+            placeholder="Min rate"
+          />
+          <input
+            className="rounded border px-2 py-1"
+            value={offerFilters.maxRate}
+            onChange={(e) => setOfferFilters({ ...offerFilters, maxRate: e.target.value })}
+            placeholder="Max rate"
+          />
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+          <input
+            className="rounded border px-2 py-1"
             value={offerForm.type}
             onChange={(e) => setOfferForm({ ...offerForm, type: e.target.value })}
             placeholder="BUY/SELL"
@@ -347,6 +531,31 @@ export default function Home() {
           >
             Мои офферы
           </button>
+          <button
+            type="button"
+            onClick={() => {
+              const nextPage = Math.max(1, offersPage - 1)
+              setOffersPage(nextPage)
+              loadOffers(nextPage)
+            }}
+            className="inline-flex items-center rounded-md bg-gray-200 px-3 py-1.5 text-gray-900"
+          >
+            Назад
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              const nextPage = offersPage + 1
+              setOffersPage(nextPage)
+              loadOffers(nextPage)
+            }}
+            className="inline-flex items-center rounded-md bg-gray-200 px-3 py-1.5 text-gray-900"
+          >
+            Вперед
+          </button>
+        </div>
+        <div className="mt-2 text-xs text-gray-500">
+          Страница {offersPage} • Всего: {offersTotal}
         </div>
         <ul className="mt-4 space-y-2 text-sm">
           {offers.map((offer) => (
@@ -474,6 +683,14 @@ export default function Home() {
         <h2 className="text-lg font-semibold">Заявки</h2>
         <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
           <input
+            className="rounded border px-2 py-1"
+            value={requestFilters.status}
+            onChange={(e) => setRequestFilters({ ...requestFilters, status: e.target.value })}
+            placeholder="Status (PENDING/ACCEPTED/...)"
+          />
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+          <input
             className="rounded border px-2 py-1 col-span-2"
             value={requestForm.offerId}
             onChange={(e) => setRequestForm({ ...requestForm, offerId: e.target.value })}
@@ -501,6 +718,31 @@ export default function Home() {
           >
             Мои заявки
           </button>
+          <button
+            type="button"
+            onClick={() => {
+              const nextPage = Math.max(1, requestsPage - 1)
+              setRequestsPage(nextPage)
+              loadRequests(nextPage)
+            }}
+            className="inline-flex items-center rounded-md bg-gray-200 px-3 py-1.5 text-gray-900"
+          >
+            Назад
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              const nextPage = requestsPage + 1
+              setRequestsPage(nextPage)
+              loadRequests(nextPage)
+            }}
+            className="inline-flex items-center rounded-md bg-gray-200 px-3 py-1.5 text-gray-900"
+          >
+            Вперед
+          </button>
+        </div>
+        <div className="mt-2 text-xs text-gray-500">
+          Страница {requestsPage} • Всего: {requestsTotal}
         </div>
         <ul className="mt-4 space-y-2 text-sm">
           {requests.map((request) => (
@@ -530,6 +772,139 @@ export default function Home() {
             </li>
           ))}
         </ul>
+      </div>
+
+      <div className="mt-8 rounded-md border p-4">
+        <h2 className="text-lg font-semibold">Кошельки/реквизиты</h2>
+        <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+          <input
+            className="rounded border px-2 py-1"
+            value={walletForm.type}
+            onChange={(e) => setWalletForm({ ...walletForm, type: e.target.value })}
+            placeholder="Тип (card, bank, crypto)"
+          />
+          <input
+            className="rounded border px-2 py-1"
+            value={walletForm.label}
+            onChange={(e) => setWalletForm({ ...walletForm, label: e.target.value })}
+            placeholder="Метка"
+          />
+          <input
+            className="rounded border px-2 py-1 col-span-2"
+            value={walletForm.value}
+            onChange={(e) => setWalletForm({ ...walletForm, value: e.target.value })}
+            placeholder="Реквизиты"
+          />
+          <label className="flex items-center gap-2 text-xs">
+            <input
+              type="checkbox"
+              checked={walletForm.isDefault}
+              onChange={(e) => setWalletForm({ ...walletForm, isDefault: e.target.checked })}
+            />
+            По умолчанию
+          </label>
+        </div>
+        <div className="mt-3 flex gap-2">
+          <button
+            type="button"
+            onClick={createWallet}
+            className="inline-flex items-center rounded-md bg-blue-600 px-3 py-1.5 text-white"
+          >
+            Добавить
+          </button>
+          <button
+            type="button"
+            onClick={loadWallets}
+            className="inline-flex items-center rounded-md bg-gray-200 px-3 py-1.5 text-gray-900"
+          >
+            Мои реквизиты
+          </button>
+        </div>
+        <ul className="mt-4 space-y-2 text-sm">
+          {wallets.map((wallet) => (
+            <li key={wallet.id} className="rounded border p-2">
+              {wallet.type} • {wallet.label || "без метки"} • {wallet.value}{" "}
+              {wallet.isDefault ? "(default)" : ""}
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="mt-8 rounded-md border p-4">
+        <h2 className="text-lg font-semibold">Уведомления</h2>
+        <div className="mt-3 flex gap-2">
+          <button
+            type="button"
+            onClick={loadNotifications}
+            className="inline-flex items-center rounded-md bg-gray-200 px-3 py-1.5 text-gray-900"
+          >
+            Обновить
+          </button>
+          <button
+            type="button"
+            onClick={markNotificationsRead}
+            className="inline-flex items-center rounded-md bg-gray-200 px-3 py-1.5 text-gray-900"
+          >
+            Пометить прочитанными
+          </button>
+        </div>
+        <ul className="mt-4 space-y-2 text-sm">
+          {notifications.map((n) => (
+            <li key={n.id} className="rounded border p-2">
+              <div className="font-medium">{n.title}</div>
+              <div className="text-xs text-gray-500">{n.type}</div>
+              <div className="text-xs text-gray-500">{n.body}</div>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="mt-8 rounded-md border p-4">
+        <h2 className="text-lg font-semibold">Оценка сделки</h2>
+        <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+          <input
+            className="rounded border px-2 py-1 col-span-2"
+            value={ratingForm.transactionId}
+            onChange={(e) => setRatingForm({ ...ratingForm, transactionId: e.target.value })}
+            placeholder="Transaction ID"
+          />
+          <input
+            className="rounded border px-2 py-1"
+            value={ratingForm.score}
+            onChange={(e) => setRatingForm({ ...ratingForm, score: e.target.value })}
+            placeholder="Score 1-5"
+          />
+          <input
+            className="rounded border px-2 py-1 col-span-2"
+            value={ratingForm.comment}
+            onChange={(e) => setRatingForm({ ...ratingForm, comment: e.target.value })}
+            placeholder="Комментарий"
+          />
+        </div>
+        <button
+          type="button"
+          onClick={createRating}
+          className="mt-3 inline-flex items-center rounded-md bg-blue-600 px-3 py-1.5 text-white"
+        >
+          Оценить
+        </button>
+      </div>
+
+      <div className="mt-8 rounded-md border p-4">
+        <h2 className="text-lg font-semibold">Админка</h2>
+        <button
+          type="button"
+          onClick={loadAdminStats}
+          className="mt-3 inline-flex items-center rounded-md bg-gray-200 px-3 py-1.5 text-gray-900"
+        >
+          Статистика
+        </button>
+        {adminStats && (
+          <div className="mt-3 text-sm">
+            Пользователи: {adminStats.users} • Офферы: {adminStats.offers} • Заявки: {adminStats.requests} •
+            Транзакции: {adminStats.transactions}
+          </div>
+        )}
       </div>
 
       {authResult && (
