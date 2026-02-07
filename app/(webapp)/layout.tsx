@@ -5,13 +5,13 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 
 const navItems = [
-  { href: "/market", label: "Market" },
-  { href: "/deals", label: "Deals" },
-  { href: "/wallets", label: "Wallets" },
-  { href: "/notifications", label: "Notifications" },
-  { href: "/ratings", label: "Ratings" },
-  { href: "/admin", label: "Admin" },
-  { href: "/profile", label: "Profile" },
+  { href: "/market", label: "Офферы" },
+  { href: "/deals", label: "Сделки" },
+  { href: "/wallets", label: "Реквизиты" },
+  { href: "/notifications", label: "Уведомления" },
+  { href: "/ratings", label: "Рейтинг" },
+  { href: "/profile", label: "Профиль" },
+  { href: "/admin", label: "Админ" },
 ]
 
 function NavLink({ href, label }: { href: string; label: string }) {

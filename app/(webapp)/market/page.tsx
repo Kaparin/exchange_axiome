@@ -26,7 +26,11 @@ export default function MarketPage() {
     amount: "100",
     currency: "RUB",
     rate: "95",
+    minAmount: "",
+    maxAmount: "",
+    paymentInfo: "",
   })
+  const [showCreate, setShowCreate] = useState(false)
   const [requestAmountByOffer, setRequestAmountByOffer] = useState<Record<string, string>>({})
   const [editOfferId, setEditOfferId] = useState<string | null>(null)
   const [editOfferForm, setEditOfferForm] = useState({
@@ -67,8 +71,12 @@ export default function MarketPage() {
       ...offerForm,
       amount: Number(offerForm.amount),
       rate: Number(offerForm.rate),
+      minAmount: offerForm.minAmount ? Number(offerForm.minAmount) : undefined,
+      maxAmount: offerForm.maxAmount ? Number(offerForm.maxAmount) : undefined,
+      paymentInfo: offerForm.paymentInfo || undefined,
     })
     if (data?.offer) {
+      setShowCreate(false)
       await loadOffers()
     }
   }
@@ -220,25 +228,17 @@ export default function MarketPage() {
         </div>
 
         <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-          <h2 className="text-lg font-semibold">Создать оффер</h2>
-          <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-            {Object.entries(offerForm).map(([key, value]) => (
-              <input
-                key={key}
-                className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
-                value={value}
-                onChange={(e) => setOfferForm({ ...offerForm, [key]: e.target.value })}
-                placeholder={key}
-              />
-            ))}
-          </div>
+          <h2 className="text-lg font-semibold">Быстрые действия</h2>
           <button
             type="button"
-            onClick={createOffer}
+            onClick={() => setShowCreate(true)}
             className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium"
           >
             Создать оффер
           </button>
+          <p className="mt-3 text-xs text-white/60">
+            Отклик на оффер — прямо в карточке без копирования ID.
+          </p>
         </div>
       </div>
 
@@ -258,6 +258,9 @@ export default function MarketPage() {
                     {offer.network} • Статус: {offer.status || "ACTIVE"} • Осталось: {offer.remaining} • Заявок:{" "}
                     {offer._count?.requests || 0}
                   </div>
+                  {offer.paymentInfo && (
+                    <div className="text-xs text-white/50">Оплата: {offer.paymentInfo}</div>
+                  )}
                 </div>
                 <div className="flex flex-col gap-2">
                   <button
@@ -392,6 +395,86 @@ export default function MarketPage() {
               )
             })}
           </ul>
+        </div>
+      )}
+
+      {showCreate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6">
+          <div className="w-full max-w-lg rounded-2xl border border-white/10 bg-[#0b1322] p-6">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold">Новый оффер</h3>
+              <button
+                type="button"
+                onClick={() => setShowCreate(false)}
+                className="text-xs text-white/60 hover:text-white"
+              >
+                Закрыть
+              </button>
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+              <input
+                className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+                value={offerForm.type}
+                onChange={(e) => setOfferForm({ ...offerForm, type: e.target.value })}
+                placeholder="BUY/SELL"
+              />
+              <input
+                className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+                value={offerForm.crypto}
+                onChange={(e) => setOfferForm({ ...offerForm, crypto: e.target.value })}
+                placeholder="USDT"
+              />
+              <input
+                className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+                value={offerForm.network}
+                onChange={(e) => setOfferForm({ ...offerForm, network: e.target.value })}
+                placeholder="TRC20"
+              />
+              <input
+                className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+                value={offerForm.amount}
+                onChange={(e) => setOfferForm({ ...offerForm, amount: e.target.value })}
+                placeholder="Amount"
+              />
+              <input
+                className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+                value={offerForm.currency}
+                onChange={(e) => setOfferForm({ ...offerForm, currency: e.target.value })}
+                placeholder="RUB"
+              />
+              <input
+                className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+                value={offerForm.rate}
+                onChange={(e) => setOfferForm({ ...offerForm, rate: e.target.value })}
+                placeholder="Rate"
+              />
+              <input
+                className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+                value={offerForm.minAmount}
+                onChange={(e) => setOfferForm({ ...offerForm, minAmount: e.target.value })}
+                placeholder="Min"
+              />
+              <input
+                className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+                value={offerForm.maxAmount}
+                onChange={(e) => setOfferForm({ ...offerForm, maxAmount: e.target.value })}
+                placeholder="Max"
+              />
+              <input
+                className="col-span-2 rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
+                value={offerForm.paymentInfo}
+                onChange={(e) => setOfferForm({ ...offerForm, paymentInfo: e.target.value })}
+                placeholder="Реквизиты/оплата"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={createOffer}
+              className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium"
+            >
+              Создать оффер
+            </button>
+          </div>
         </div>
       )}
     </div>
