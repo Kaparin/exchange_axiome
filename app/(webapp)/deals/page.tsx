@@ -13,10 +13,6 @@ export default function DealsPage() {
   const [requestFilters, setRequestFilters] = useState({
     status: "",
   })
-  const [requestForm, setRequestForm] = useState({
-    offerId: "",
-    amount: "50",
-  })
   const [transactions, setTransactions] = useState<TransactionItem[]>([])
   const [myOffers, setMyOffers] = useState<Offer[]>([])
   const [offerRequests, setOfferRequests] = useState<RequestItem[]>([])
@@ -34,16 +30,6 @@ export default function DealsPage() {
     if (data?.requests) {
       setRequests(data.requests)
       setRequestsTotal(data.total || 0)
-    }
-  }
-
-  const createRequest = async () => {
-    const data = await apiPost<{ request?: RequestItem }>("/api/requests", {
-      offerId: requestForm.offerId,
-      amount: Number(requestForm.amount),
-    })
-    if (data?.request) {
-      await loadRequests()
     }
   }
 
@@ -84,7 +70,7 @@ export default function DealsPage() {
   return (
     <div className="space-y-6">
       <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-        <h2 className="text-lg font-semibold">Заявки</h2>
+        <h2 className="text-lg font-semibold">Мои заявки</h2>
         <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
           <input
             className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
@@ -93,26 +79,9 @@ export default function DealsPage() {
             placeholder="Status"
           />
         </div>
-        <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
-          <input
-            className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white col-span-2"
-            value={requestForm.offerId}
-            onChange={(e) => setRequestForm({ ...requestForm, offerId: e.target.value })}
-            placeholder="Offer ID"
-          />
-          <input
-            className="rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-white"
-            value={requestForm.amount}
-            onChange={(e) => setRequestForm({ ...requestForm, amount: e.target.value })}
-            placeholder="Amount"
-          />
-        </div>
         <div className="mt-3 flex flex-wrap gap-2">
-          <button type="button" onClick={createRequest} className="rounded-lg bg-blue-600 px-3 py-2 text-xs">
-            Создать заявку
-          </button>
           <button type="button" onClick={() => loadRequests()} className="rounded-lg bg-white/10 px-3 py-2 text-xs">
-            Мои заявки
+            Обновить
           </button>
           <button
             type="button"
@@ -140,11 +109,14 @@ export default function DealsPage() {
             Страница {requestsPage} • Всего: {requestsTotal}
           </span>
         </div>
-        <ul className="mt-4 space-y-2 text-sm">
+        <ul className="mt-4 space-y-3 text-sm">
           {requests.map((request) => (
             <li key={request.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
               <div className="text-xs text-white/50">{request.id}</div>
-              {request.amount} {request.offer.crypto} @ {request.offer.rate} {request.offer.currency} • {request.status}
+              <div className="font-semibold">
+                {request.amount} {request.offer.crypto} @ {request.offer.rate} {request.offer.currency}
+              </div>
+              <div className="text-xs text-white/50">{request.status}</div>
             </li>
           ))}
         </ul>
@@ -152,7 +124,7 @@ export default function DealsPage() {
 
       <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
         <h2 className="text-lg font-semibold">Мои офферы</h2>
-        <ul className="mt-4 space-y-2 text-sm">
+        <ul className="mt-4 space-y-3 text-sm">
           {myOffers.map((offer) => (
             <li key={offer.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
               <div className="text-xs text-white/50">{offer.id}</div>
@@ -164,7 +136,7 @@ export default function DealsPage() {
                 onClick={() => loadOfferRequests(offer.id)}
                 className="mt-2 rounded-lg bg-white/10 px-3 py-1 text-xs"
               >
-                Показать заявки
+                Заявки по офферу
               </button>
             </li>
           ))}
