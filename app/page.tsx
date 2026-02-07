@@ -18,6 +18,14 @@ type Offer = {
   currency: string
   rate: number
   paymentInfo?: string | null
+  _count?: { requests: number }
+}
+
+type RequestItem = {
+  id: string
+  amount: number
+  status: string
+  offer: Offer
 }
 
 function getInitDataFromHash(): string | null {
@@ -43,6 +51,11 @@ export default function Home() {
     currency: "RUB",
     rate: "95",
   })
+  const [requestForm, setRequestForm] = useState({
+    offerId: "",
+    amount: "50",
+  })
+  const [requests, setRequests] = useState<RequestItem[]>([])
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -102,6 +115,30 @@ export default function Home() {
     const data = await res.json()
     if (data?.offers) {
       setOffers(data.offers)
+    }
+  }
+
+  const loadRequests = async () => {
+    const res = await fetch("/api/requests?mine=1")
+    const data = await res.json()
+    if (data?.requests) {
+      setRequests(data.requests)
+    }
+  }
+
+  const createRequest = async () => {
+    const res = await fetch("/api/requests", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        offerId: requestForm.offerId,
+        amount: Number(requestForm.amount),
+      }),
+    })
+    const data = await res.json()
+    if (data?.request) {
+      await loadRequests()
+      await loadOffers()
     }
   }
 
@@ -193,7 +230,54 @@ export default function Home() {
         <ul className="mt-4 space-y-2 text-sm">
           {offers.map((offer) => (
             <li key={offer.id} className="rounded border p-2">
+              <div className="font-mono text-xs text-gray-500">{offer.id}</div>
               {offer.type} {offer.amount} {offer.crypto} @ {offer.rate} {offer.currency} ({offer.network})
+              <div className="text-xs text-gray-500">
+                Осталось: {offer.remaining} • Заявок: {offer._count?.requests || 0}
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="mt-8 rounded-md border p-4">
+        <h2 className="text-lg font-semibold">Заявки</h2>
+        <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+          <input
+            className="rounded border px-2 py-1 col-span-2"
+            value={requestForm.offerId}
+            onChange={(e) => setRequestForm({ ...requestForm, offerId: e.target.value })}
+            placeholder="Offer ID"
+          />
+          <input
+            className="rounded border px-2 py-1"
+            value={requestForm.amount}
+            onChange={(e) => setRequestForm({ ...requestForm, amount: e.target.value })}
+            placeholder="Amount"
+          />
+        </div>
+        <div className="mt-3 flex gap-2">
+          <button
+            type="button"
+            onClick={createRequest}
+            className="inline-flex items-center rounded-md bg-blue-600 px-3 py-1.5 text-white"
+          >
+            Создать заявку
+          </button>
+          <button
+            type="button"
+            onClick={loadRequests}
+            className="inline-flex items-center rounded-md bg-gray-200 px-3 py-1.5 text-gray-900"
+          >
+            Мои заявки
+          </button>
+        </div>
+        <ul className="mt-4 space-y-2 text-sm">
+          {requests.map((request) => (
+            <li key={request.id} className="rounded border p-2">
+              <div className="font-mono text-xs text-gray-500">{request.id}</div>
+              {request.amount} {request.offer.crypto} @ {request.offer.rate} {request.offer.currency} •{" "}
+              {request.status}
             </li>
           ))}
         </ul>
