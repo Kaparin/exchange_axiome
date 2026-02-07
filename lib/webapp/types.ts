@@ -20,6 +20,7 @@ export type RequestItem = {
   userId: string
   amount: number
   status: string
+  createdAt: string
   offer: Offer
 }
 

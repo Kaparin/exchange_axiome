@@ -183,7 +183,7 @@ export default function WalletsPage() {
                   </div>
                 ) : (
                   <>
-                    <div className="text-xs text-white/50">{wallet.type}</div>
+                    <div className="text-xs text-white/50">{{ card: "Карта", bank: "Счёт", crypto: "Крипто", sbp: "СБП" }[wallet.type] || wallet.type}</div>
                     <div className="font-semibold">{wallet.label || "Без метки"}</div>
                     <div className="text-xs text-white/70">{wallet.value}</div>
                     {wallet.isDefault && <div className="mt-1 text-xs text-blue-300">По умолчанию</div>}

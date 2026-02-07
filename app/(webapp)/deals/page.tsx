@@ -203,11 +203,11 @@ export default function DealsPage() {
               ) : (
                 requests.map((request) => (
                   <li key={request.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
-                    <div className="text-xs text-white/50">{request.id}</div>
+                    <div className="text-xs text-white/50">{new Date(request.createdAt).toLocaleString("ru-RU")}</div>
                     <div className="font-semibold">
                       {request.amount} {request.offer.crypto} @ {request.offer.rate} {request.offer.currency}
                     </div>
-                    <div className="text-xs text-white/50">{request.status}</div>
+                    <div className="text-xs text-white/50">{{ PENDING: "Ожидание", ACCEPTED: "Принята", REJECTED: "Отклонена", COMPLETED: "Завершена" }[request.status] || request.status}</div>
                   </li>
                 ))
               )}
@@ -226,9 +226,15 @@ export default function DealsPage() {
               ) : (
                 myOffers.map((offer) => (
                   <li key={offer.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
-                    <div className="text-xs text-white/50">{offer.id}</div>
+                    <div className="flex items-center justify-between text-xs text-white/50">
+                      <span>{offer.type === "BUY" ? "Покупка" : "Продажа"}</span>
+                      <span>{(offer.status || "ACTIVE") === "ACTIVE" ? "Активный" : "Закрыт"}</span>
+                    </div>
                     <div className="font-semibold">
-                      {offer.type} {offer.amount} {offer.crypto} @ {offer.rate} {offer.currency}
+                      {offer.amount} {offer.crypto} @ {offer.rate} {offer.currency}
+                    </div>
+                    <div className="text-xs text-white/50">
+                      {offer.network} • Осталось: {offer.remaining}
                     </div>
                     <button
                       type="button"
@@ -246,18 +252,20 @@ export default function DealsPage() {
           {activeOfferId && (
             <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-5">
               <h3 className="text-md font-semibold">Заявки по офферу</h3>
-              <div className="text-xs text-white/50">{activeOfferId}</div>
+              <div className="text-xs text-white/50">
+                {(() => { const o = myOffers.find(o => o.id === activeOfferId); return o ? `${o.type === "BUY" ? "Покупка" : "Продажа"} ${o.amount} ${o.crypto}` : "" })()}
+              </div>
               <ul className="mt-3 space-y-2 text-sm">
                 {offerRequests.map((request) => {
                   const isOwner = request.offer.userId === me?.user?.id
                   const isRequester = request.userId === me?.user?.id
                   return (
                     <li key={request.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
-                      <div className="text-xs text-white/50">{request.id}</div>
+                      <div className="text-xs text-white/50">{new Date(request.createdAt).toLocaleString("ru-RU")}</div>
                       <div className="text-sm font-semibold">
                         {request.amount} {request.offer.crypto} @ {request.offer.rate} {request.offer.currency}
                       </div>
-                      <div className="text-xs text-white/50">{request.status}</div>
+                      <div className="text-xs text-white/50">{{ PENDING: "Ожидание", ACCEPTED: "Принята", REJECTED: "Отклонена", COMPLETED: "Завершена" }[request.status] || request.status}</div>
                       <div className="mt-2 flex gap-2">
                         {isOwner && request.status === "PENDING" && (
                           <>
@@ -318,11 +326,11 @@ export default function DealsPage() {
               ) : (
                 transactions.map((tx) => (
                   <li key={tx.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
-                    <div className="text-xs text-white/50">{tx.id}</div>
+                    <div className="text-xs text-white/50">{new Date(tx.createdAt).toLocaleString("ru-RU")}</div>
                     <div className="font-semibold">
                       {tx.amount} {tx.currency} @ {tx.rate}
                     </div>
-                    <div className="text-xs text-white/50">{tx.status}</div>
+                    <div className="text-xs text-white/50">{{ PENDING: "Ожидание", COMPLETED: "Завершена", CANCELLED: "Отменена" }[tx.status] || tx.status}</div>
                     <div className="text-xs text-white/40">
                       {new Date(tx.createdAt).toLocaleString("ru-RU")}
                     </div>

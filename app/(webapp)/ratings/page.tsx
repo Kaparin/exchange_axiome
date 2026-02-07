@@ -88,11 +88,11 @@ export default function RatingsPage() {
               const alreadyRated = ratedIds.has(tx.id)
               return (
                 <li key={tx.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
-                  <div className="text-xs text-white/50">{tx.id}</div>
+                  <div className="text-xs text-white/50">{new Date(tx.createdAt).toLocaleString("ru-RU")}</div>
                   <div className="text-sm font-semibold">
                     {tx.amount} {tx.currency} @ {tx.rate}
                   </div>
-                  <div className="text-xs text-white/60">{tx.status}</div>
+                  <div className="text-xs text-white/60">{{ PENDING: "Ожидание", COMPLETED: "Завершена", CANCELLED: "Отменена" }[tx.status] || tx.status}</div>
                   <div className="text-xs text-white/40">
                     {new Date(tx.createdAt).toLocaleString("ru-RU")}
                   </div>

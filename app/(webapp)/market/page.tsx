@@ -391,7 +391,7 @@ export default function MarketPage() {
             onClick={() => setShowQuick((prev) => !prev)}
             className="flex w-full items-center justify-between text-left"
           >
-            <h2 className="text-lg font-semibold">Быстрые действия</h2>
+            <h2 className="text-lg font-semibold">Создать оффер</h2>
             <span className="text-xs text-white/60">{showQuick ? "Скрыть" : "Показать"}</span>
           </button>
           {showQuick && (
@@ -423,9 +423,6 @@ export default function MarketPage() {
               >
                 Создать оффер
               </button>
-              <p className="mt-3 text-xs text-white/60">
-                Отклик на оффер — прямо в карточке без копирования ID.
-              </p>
             </>
           )}
         </div>
@@ -454,7 +451,7 @@ export default function MarketPage() {
                 <div key={offer.id} className="rounded-xl border border-white/10 bg-white/5 p-4">
                   <div className="flex items-center justify-between text-xs text-white/60">
                     <span>{offer.type === "BUY" ? "Покупка" : "Продажа"}</span>
-                    <span>{offer.status || "ACTIVE"}</span>
+                    <span>{(offer.status || "ACTIVE") === "ACTIVE" ? "Активный" : "Закрыт"}</span>
                   </div>
                   <div className="mt-2 text-lg font-semibold">
                     {offer.amount} {offer.crypto}
@@ -575,7 +572,9 @@ export default function MarketPage() {
           >
             <div>
               <h3 className="text-md font-semibold">Заявки по офферу</h3>
-              <div className="text-xs text-white/50">{activeOfferId}</div>
+              <div className="text-xs text-white/50">
+                {(() => { const o = offers.find(o => o.id === activeOfferId); return o ? `${o.type === "BUY" ? "Покупка" : "Продажа"} ${o.amount} ${o.crypto}` : "" })()}
+              </div>
             </div>
             <span className="text-xs text-white/60">{showRequests ? "Скрыть" : "Показать"}</span>
           </button>
@@ -586,11 +585,11 @@ export default function MarketPage() {
                 const isRequester = request.userId === me?.user?.id
                 return (
                   <li key={request.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
-                    <div className="text-xs text-white/50">{request.id}</div>
+                    <div className="text-xs text-white/50">{new Date(request.createdAt).toLocaleString("ru-RU")}</div>
                     <div className="text-sm font-semibold">
                       {request.amount} {request.offer.crypto} @ {request.offer.rate} {request.offer.currency}
                     </div>
-                    <div className="text-xs text-white/50">{request.status}</div>
+                    <div className="text-xs text-white/50">{{ PENDING: "Ожидание", ACCEPTED: "Принята", REJECTED: "Отклонена", COMPLETED: "Завершена" }[request.status] || request.status}</div>
                     <div className="mt-2 flex gap-2">
                       {isOwner && request.status === "PENDING" && (
                         <>

@@ -124,7 +124,7 @@ export default function WebAppLayout({ children }: { children: ReactNode }) {
       <div className="min-h-screen bg-black text-white">
         <div className="min-h-screen bg-black/90">
           <div className="mx-auto flex min-h-screen max-w-2xl flex-col items-center justify-center px-6 text-center">
-            <img src="/logo.png" alt="Exchange Axiome" className="h-14 w-14 rounded-2xl" />
+            <img src="/logo.png" alt="Exchange Axiome" className="h-20 w-20 rounded-2xl object-contain" />
             <h1 className="mt-4 text-xl font-semibold">Exchange Axiome</h1>
             <p className="mt-2 text-sm text-white/60">
               {authState.status === "loading" ? "Авторизация..." : authState.message}
@@ -161,10 +161,9 @@ export default function WebAppLayout({ children }: { children: ReactNode }) {
       <div className="min-h-screen bg-black/80">
         <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
           <div className="flex items-center gap-4">
-            <img src="/logo.png" alt="Exchange Axiome" className="h-12 w-12 rounded-xl" />
+            <img src="/logo.png" alt="Exchange Axiome" className="h-16 w-16 rounded-xl object-contain" />
             <div>
               <h1 className="text-2xl font-semibold">Exchange Axiome</h1>
-              <p className="text-xs text-white/60">Telegram Mini App</p>
             </div>
           </div>
           <div className="flex items-center gap-3 text-xs text-white/70">
